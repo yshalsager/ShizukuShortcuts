@@ -1,8 +1,11 @@
 package com.yshalsager.shizukushortcuts.screenshots
 
 import android.app.Instrumentation
+import android.app.LocaleManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.LocaleList
 import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -46,6 +49,7 @@ class FastlaneScreenshotsTest {
 
     @Test
     fun capture_home() {
+        apply_app_locale()
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ActivityScenario.launch<MainActivity>(intent).use {
@@ -53,6 +57,15 @@ class FastlaneScreenshotsTest {
             SystemClock.sleep(1200)
             Screengrab.screenshot("01_home")
         }
+    }
+
+    private fun apply_app_locale() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+
+        val locale_manager = context.getSystemService(LocaleManager::class.java) ?: return
+        locale_manager.applicationLocales = LocaleList.forLanguageTags(Screengrab.getLocale())
+        instrumentation.waitForIdleSync()
+        SystemClock.sleep(300)
     }
 
     private class FakeShizukuManager : ShizukuManagerContract {
