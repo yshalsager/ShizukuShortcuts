@@ -1,0 +1,3 @@
+package_name('com.yshalsager.shizukushortcuts')
+
+json_key_file(ENV['PLAY_SERVICE_ACCOUNT_JSON_PATH']) if ENV['PLAY_SERVICE_ACCOUNT_JSON_PATH']

@@ -1,0 +1,3 @@
+[tools]
+java = 'openjdk-25.0.2'
+ruby = '3'

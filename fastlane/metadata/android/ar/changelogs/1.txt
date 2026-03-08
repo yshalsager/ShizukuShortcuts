@@ -1,0 +1,1 @@
+Release v0.1.0. Notes: https://github.com/yshalsager/shizuku-shortcuts/releases/tag/v0.1.0

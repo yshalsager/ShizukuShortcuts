@@ -1,0 +1,52 @@
+def metadata_path
+  'metadata/android'
+end
+
+def screenshot_test_package
+  'com.yshalsager.shizukushortcuts.screenshots'
+end
+
+platform :android do
+  desc 'Validate fastlane metadata basics'
+  lane :validate_metadata do
+    sh('test -d metadata/android/en-US')
+    sh('test -d metadata/android/ar')
+    sh('test -f metadata/android/en-US/title.txt')
+    sh('test -f metadata/android/en-US/short_description.txt')
+    sh('test -f metadata/android/en-US/full_description.txt')
+    sh('test -f metadata/android/ar/title.txt')
+    sh('test -f metadata/android/ar/short_description.txt')
+    sh('test -f metadata/android/ar/full_description.txt')
+  end
+
+  desc 'Capture app screenshots for en-US and ar'
+  lane :capture_screenshots do
+    screengrab(
+      locales: ['en-US', 'ar'],
+      clear_previous_screenshots: true,
+      output_directory: metadata_path,
+      app_apk_path: '../app/build/outputs/apk/debug/app-debug.apk',
+      tests_apk_path: '../app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',
+      use_tests_in_packages: screenshot_test_package,
+      app_package_name: 'com.yshalsager.shizukushortcuts',
+      tests_package_name: 'com.yshalsager.shizukushortcuts.test',
+      use_timestamp_suffix: false,
+      skip_open_summary: true
+    )
+  end
+
+  desc 'Upload signed release bundle to Google Play'
+  lane :upload_play do |options|
+    upload_to_play_store(
+      aab: options[:aab] || ENV['PLAY_AAB_PATH'],
+      track: options[:track] || 'production',
+      release_status: options[:release_status] || 'completed',
+      metadata_path: metadata_path,
+      skip_upload_apk: true,
+      skip_upload_aab: false,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+  end
+end

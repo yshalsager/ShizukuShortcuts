@@ -1,0 +1,8 @@
+<resources>
+    <style name='Theme.ShizukuShortcuts' parent='@android:style/Theme.Material.NoActionBar'>
+        <item name='android:statusBarColor'>@android:color/transparent</item>
+        <item name='android:navigationBarColor'>@android:color/transparent</item>
+        <item name='android:windowActionBar'>false</item>
+        <item name='android:windowNoTitle'>true</item>
+    </style>
+</resources>

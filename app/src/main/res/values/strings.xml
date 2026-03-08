@@ -1,0 +1,24 @@
+<resources>
+    <string name='app_name'>Shizuku Shortcuts</string>
+    <string name='available_actions_title'>Available Actions</string>
+    <string name='status_running_short'>Running</string>
+    <string name='status_not_running_short'>Stopped</string>
+    <string name='status_permission_granted_short'>Permission OK</string>
+    <string name='status_permission_missing_short'>Permission needed</string>
+    <string name='request_permission'>Grant Shizuku permission</string>
+    <string name='open_notifications'>Open notifications</string>
+    <string name='open_notifications_long'>Open the notification shade</string>
+    <string name='open_quick_settings'>Open Quick Settings</string>
+    <string name='open_quick_settings_long'>Open the Quick Settings panel</string>
+    <string name='try_action'>Try</string>
+    <string name='pin_action'>Pin</string>
+    <string name='pin_success'>Launcher pin request sent</string>
+    <string name='pin_not_supported'>Pinned shortcuts are not supported by this launcher</string>
+    <string name='pin_failed'>Could not create the shortcut</string>
+    <string name='try_notifications_success'>Opened notifications</string>
+    <string name='try_quick_settings_success'>Opened Quick Settings</string>
+    <string name='dispatch_missing_action'>Unknown shortcut action</string>
+    <string name='dispatch_need_shizuku'>Start Shizuku, then try the shortcut again.</string>
+    <string name='dispatch_need_permission'>Grant Shizuku permission, then try the shortcut again.</string>
+    <string name='dispatch_failed'>Command failed</string>
+</resources>

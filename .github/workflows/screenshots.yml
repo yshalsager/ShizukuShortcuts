@@ -1,0 +1,100 @@
+name: Update Fastlane Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_pr:
+        description: 'Create/update PR with screenshot changes'
+        type: boolean
+        default: true
+      base_ref:
+        description: 'Ref to checkout before running capture'
+        type: string
+        required: false
+  workflow_call:
+    inputs:
+      create_pr:
+        type: boolean
+        default: true
+      base_ref:
+        type: string
+        required: false
+
+env:
+  MISE_ENV: ci
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.base_ref || github.ref_name }}
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: jdx/mise-action@v3
+        with:
+          cache: true
+          cache_key_prefix: 'mise-v1'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Install fastlane gems
+        run: mise x ruby -- bundle install
+
+      - name: Build APKs for screengrab
+        run: mise x java -- ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          script: |
+            mise x ruby -- bundle exec fastlane android capture_screenshots
+
+      - name: Detect screenshot changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git status --porcelain -- 'fastlane/metadata/android/*/images/phoneScreenshots/*.png' | grep -q .; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update PR
+        if: ${{ inputs.create_pr && steps.changes.outputs.changed == 'true' }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/update-fastlane-screenshots
+          delete-branch: false
+          title: 'chore: update fastlane screenshots'
+          body: |
+            Automated screenshot refresh for fastlane metadata.
+          commit-message: 'chore: update fastlane screenshots'
+          add-paths: |
+            fastlane/metadata/android/**/images/phoneScreenshots/*.png
+
+      - name: Upload screenshots artifact
+        if: ${{ steps.changes.outputs.changed == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: fastlane-screenshots
+          path: fastlane/metadata/android/**/images/phoneScreenshots/*.png
+          if-no-files-found: ignore

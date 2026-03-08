@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<shortcuts xmlns:android='http://schemas.android.com/apk/res/android'>
+
+    <shortcut
+        android:enabled='true'
+        android:icon='@drawable/ic_shortcut_notifications'
+        android:shortcutId='expand_notifications'
+        android:shortcutLongLabel='@string/open_notifications_long'
+        android:shortcutShortLabel='@string/open_notifications'>
+
+        <intent
+            android:action='com.yshalsager.shizukushortcuts.action.EXPAND_NOTIFICATIONS'
+            android:targetClass='com.yshalsager.shizukushortcuts.ShortcutDispatchActivity'
+            android:targetPackage='com.yshalsager.shizukushortcuts' />
+    </shortcut>
+
+    <shortcut
+        android:enabled='true'
+        android:icon='@drawable/ic_shortcut_quick_settings'
+        android:shortcutId='expand_quick_settings'
+        android:shortcutLongLabel='@string/open_quick_settings_long'
+        android:shortcutShortLabel='@string/open_quick_settings'>
+
+        <intent
+            android:action='com.yshalsager.shizukushortcuts.action.EXPAND_QUICK_SETTINGS'
+            android:targetClass='com.yshalsager.shizukushortcuts.ShortcutDispatchActivity'
+            android:targetPackage='com.yshalsager.shizukushortcuts' />
+    </shortcut>
+</shortcuts>
+

@@ -1,0 +1,7 @@
+[tools]
+java = 'temurin-17.0.18+8'
+ruby = '3'
+node = '22'
+
+[settings.ruby]
+compile = false

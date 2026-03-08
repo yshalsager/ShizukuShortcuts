@@ -1,0 +1,24 @@
+<resources>
+    <string name='app_name'>اختصارات شيزوكو</string>
+    <string name='available_actions_title'>الإجراءات المتاحة</string>
+    <string name='status_running_short'>يعمل</string>
+    <string name='status_not_running_short'>متوقف</string>
+    <string name='status_permission_granted_short'>الإذن جاهز</string>
+    <string name='status_permission_missing_short'>الإذن مطلوب</string>
+    <string name='request_permission'>امنح إذن Shizuku</string>
+    <string name='open_notifications'>فتح الإشعارات</string>
+    <string name='open_notifications_long'>فتح لوحة الإشعارات</string>
+    <string name='open_quick_settings'>فتح الإعدادات السريعة</string>
+    <string name='open_quick_settings_long'>فتح لوحة الإعدادات السريعة</string>
+    <string name='try_action'>جرّب</string>
+    <string name='pin_action'>ثبّت</string>
+    <string name='pin_success'>تم إرسال طلب التثبيت إلى المشغّل</string>
+    <string name='pin_not_supported'>المشغّل لا يدعم الاختصارات المثبتة</string>
+    <string name='pin_failed'>تعذر إنشاء الاختصار</string>
+    <string name='try_notifications_success'>تم فتح الإشعارات</string>
+    <string name='try_quick_settings_success'>تم فتح الإعدادات السريعة</string>
+    <string name='dispatch_missing_action'>إجراء اختصار غير معروف</string>
+    <string name='dispatch_need_shizuku'>شغّل Shizuku ثم أعد المحاولة.</string>
+    <string name='dispatch_need_permission'>امنح إذن Shizuku ثم أعد المحاولة.</string>
+    <string name='dispatch_failed'>فشل الأمر</string>
+</resources>
