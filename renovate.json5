@@ -1,0 +1,67 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    ':rebaseStalePrs',
+    'group:allNonMajor',
+  ],
+  timezone: 'Africa/Cairo',
+  labels: [
+    'dependencies',
+    'android',
+  ],
+  enabledManagers: [
+    'gradle',
+    'gradle-wrapper',
+    'github-actions',
+  ],
+  schedule: [
+    'before 5am on saturday',
+  ],
+  lockFileMaintenance: {
+    enabled: true,
+    automerge: true,
+    schedule: [
+      'before 5am on saturday',
+    ],
+  },
+  packageRules: [
+    {
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+        'pin',
+        'digest',
+      ],
+      automerge: true,
+      automergeType: 'pr',
+    },
+    {
+      matchManagers: [
+        'gradle',
+        'gradle-wrapper',
+      ],
+      matchPackagePrefixes: [
+        'androidx.',
+        'com.android.tools.build',
+        'com.google.android',
+        'org.jetbrains.kotlin',
+      ],
+      groupName: 'android stack',
+    },
+    {
+      matchManagers: [
+        'gradle',
+        'gradle-wrapper',
+      ],
+      matchPackagePrefixes: [
+        'com.android.tools.build',
+        'org.jetbrains.kotlin',
+      ],
+      matchUpdateTypes: [
+        'major',
+      ],
+      automerge: false,
+    },
+  ],
+}
