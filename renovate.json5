@@ -41,27 +41,27 @@
         'gradle',
         'gradle-wrapper',
       ],
-      matchPackagePrefixes: [
-        'androidx.',
-        'com.android.tools.build',
-        'com.google.android',
-        'org.jetbrains.kotlin',
-      ],
       groupName: 'android stack',
+      matchPackageNames: [
+        'androidx.{/,}**',
+        'com.android.tools.build{/,}**',
+        'com.google.android{/,}**',
+        'org.jetbrains.kotlin{/,}**',
+      ],
     },
     {
       matchManagers: [
         'gradle',
         'gradle-wrapper',
       ],
-      matchPackagePrefixes: [
-        'com.android.tools.build',
-        'org.jetbrains.kotlin',
-      ],
       matchUpdateTypes: [
         'major',
       ],
       automerge: false,
+      matchPackageNames: [
+        'com.android.tools.build{/,}**',
+        'org.jetbrains.kotlin{/,}**',
+      ],
     },
   ],
 }
