@@ -1,5 +1,19 @@
+opt_out_usage
+
+def repo_path(*parts)
+  File.expand_path(File.join('..', *parts), __dir__)
+end
+
 def metadata_path
-  'metadata/android'
+  repo_path('fastlane', 'metadata', 'android')
+end
+
+def debug_app_apk_path
+  repo_path('app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk')
+end
+
+def debug_tests_apk_path
+  repo_path('app', 'build', 'outputs', 'apk', 'androidTest', 'debug', 'app-debug-androidTest.apk')
 end
 
 def screenshot_test_package
@@ -9,14 +23,18 @@ end
 platform :android do
   desc 'Validate fastlane metadata basics'
   lane :validate_metadata do
-    sh('test -d metadata/android/en-US')
-    sh('test -d metadata/android/ar')
-    sh('test -f metadata/android/en-US/title.txt')
-    sh('test -f metadata/android/en-US/short_description.txt')
-    sh('test -f metadata/android/en-US/full_description.txt')
-    sh('test -f metadata/android/ar/title.txt')
-    sh('test -f metadata/android/ar/short_description.txt')
-    sh('test -f metadata/android/ar/full_description.txt')
+    [
+      repo_path('fastlane', 'metadata', 'android', 'en-US'),
+      repo_path('fastlane', 'metadata', 'android', 'ar'),
+      repo_path('fastlane', 'metadata', 'android', 'en-US', 'title.txt'),
+      repo_path('fastlane', 'metadata', 'android', 'en-US', 'short_description.txt'),
+      repo_path('fastlane', 'metadata', 'android', 'en-US', 'full_description.txt'),
+      repo_path('fastlane', 'metadata', 'android', 'ar', 'title.txt'),
+      repo_path('fastlane', 'metadata', 'android', 'ar', 'short_description.txt'),
+      repo_path('fastlane', 'metadata', 'android', 'ar', 'full_description.txt')
+    ].each do |path|
+      UI.user_error!("Missing required metadata path: #{path}") unless File.exist?(path)
+    end
   end
 
   desc 'Capture app screenshots for en-US and ar'
@@ -25,8 +43,8 @@ platform :android do
       locales: ['en-US', 'ar'],
       clear_previous_screenshots: true,
       output_directory: metadata_path,
-      app_apk_path: '../app/build/outputs/apk/debug/app-debug.apk',
-      tests_apk_path: '../app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',
+      app_apk_path: debug_app_apk_path,
+      tests_apk_path: debug_tests_apk_path,
       use_tests_in_packages: screenshot_test_package,
       app_package_name: 'com.yshalsager.shizukushortcuts',
       tests_package_name: 'com.yshalsager.shizukushortcuts.test',
