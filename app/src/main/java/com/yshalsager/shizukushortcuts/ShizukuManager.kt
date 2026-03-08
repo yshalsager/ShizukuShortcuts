@@ -26,14 +26,14 @@ interface ShizukuManagerContract {
     val state: StateFlow<ShizukuState>
     fun refresh_state()
     fun request_permission()
-    suspend fun perform_action(action: ShortcutAction): ActionResult
+    suspend fun perform_action(action: AppActionItem): ActionResult
 }
 
 class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
     companion object {
         private const val permission_request_code = 4001
         private const val service_tag = "statusbar_shortcuts"
-        private const val service_version = 1
+        private const val service_version = 2
     }
 
     private val state_flow = MutableStateFlow(ShizukuState())
@@ -75,7 +75,7 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
         Shizuku.requestPermission(permission_request_code)
     }
 
-    override suspend fun perform_action(action: ShortcutAction): ActionResult {
+    override suspend fun perform_action(action: AppActionItem): ActionResult {
         if (!Shizuku.pingBinder()) return ActionResult.shizuku_unavailable(action.id)
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
             return ActionResult.permission_denied(action.id)
@@ -96,11 +96,14 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
                 override fun onServiceConnected(name: ComponentName, service: IBinder) {
                     worker_scope.launch {
                         val remote = IPrivilegedStatusBarService.Stub.asInterface(service)
-                        val result = runCatching { remote.perform_action(action.id) }
+                        val result = runCatching {
+                            action.shell_command?.let { remote.perform_custom_action(action.id, it) }
+                                ?: remote.perform_action(action.id)
+                        }
                             .getOrElse { exception ->
                                 ActionResult.execution_failed(
                                     action_id = action.id,
-                                    executed_command = action.primary_command.joinToString(" "),
+                                    executed_command = action.shell_command ?: action.id,
                                     message = exception.message ?: "Remote execution failed"
                                 )
                             }
@@ -112,7 +115,7 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
                     finish(
                         ActionResult.execution_failed(
                             action_id = action.id,
-                            executed_command = action.primary_command.joinToString(" "),
+                            executed_command = action.shell_command ?: action.id,
                             message = "User service disconnected"
                         )
                     )
@@ -128,7 +131,7 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
                     finish(
                         ActionResult.execution_failed(
                             action_id = action.id,
-                            executed_command = action.primary_command.joinToString(" "),
+                            executed_command = action.shell_command ?: action.id,
                             message = exception.message ?: "Could not bind user service"
                         )
                     )

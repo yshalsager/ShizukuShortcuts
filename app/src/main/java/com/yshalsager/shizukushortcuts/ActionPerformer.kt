@@ -26,6 +26,8 @@ object ProcessCommandRunner : CommandRunner {
 }
 
 object ActionPerformer {
+    private const val max_custom_action_message_length = 8_192
+
     fun perform_action(action_id: String, command_runner: CommandRunner = ProcessCommandRunner): ActionResult {
         val action = ShortcutActions.find_by_id(action_id) ?: return ActionResult.unknown_action(action_id)
         var last_error = ""
@@ -60,5 +62,34 @@ object ActionPerformer {
             used_fallback = action.fallback_commands.isNotEmpty()
         )
     }
-}
 
+    fun perform_custom_action(action_id: String, shell_command: String, command_runner: CommandRunner = ProcessCommandRunner): ActionResult {
+        val command = listOf("sh", "-c", shell_command)
+        val run = runCatching { command_runner.run_command(command) }
+            .getOrElse { exception ->
+                return ActionResult.execution_failed(
+                    action_id = action_id,
+                    executed_command = command.joinToString(" "),
+                    message = exception.message ?: "Command failed"
+                )
+            }
+
+        if (run.exit_code == 0) {
+            return ActionResult.success(
+                action_id = action_id,
+                executed_command = command.joinToString(" "),
+                used_fallback = false,
+                message = truncate_custom_action_message(run.output)
+            )
+        }
+
+        return ActionResult.execution_failed(
+            action_id = action_id,
+            executed_command = command.joinToString(" "),
+            message = truncate_custom_action_message(run.output).ifBlank { "Exit code ${run.exit_code}" }
+        )
+    }
+
+    private fun truncate_custom_action_message(message: String) =
+        if (message.length <= max_custom_action_message_length) message else message.take(max_custom_action_message_length)
+}

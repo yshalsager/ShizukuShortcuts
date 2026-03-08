@@ -1,1 +1,1 @@
-Launcher shortcuts for notifications and Quick Settings via Shizuku
+Launcher shortcuts and custom shell actions via Shizuku

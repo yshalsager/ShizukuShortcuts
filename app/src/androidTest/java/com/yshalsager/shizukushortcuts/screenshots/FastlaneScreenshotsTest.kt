@@ -13,10 +13,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.yshalsager.shizukushortcuts.ActionResult
 import com.yshalsager.shizukushortcuts.AppServices
+import com.yshalsager.shizukushortcuts.AppActionItem
+import com.yshalsager.shizukushortcuts.CustomAction
+import com.yshalsager.shizukushortcuts.CustomActionsRepositoryContract
 import com.yshalsager.shizukushortcuts.MainActivity
 import com.yshalsager.shizukushortcuts.ShizukuManagerContract
 import com.yshalsager.shizukushortcuts.ShizukuState
-import com.yshalsager.shizukushortcuts.ShortcutAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.After
@@ -40,6 +42,7 @@ class FastlaneScreenshotsTest {
         instrumentation = InstrumentationRegistry.getInstrumentation()
         context = ApplicationProvider.getApplicationContext()
         AppServices.manager_factory = { FakeShizukuManager() }
+        AppServices.custom_actions_repository_factory = { FakeCustomActionsRepository() }
     }
 
     @After
@@ -83,7 +86,24 @@ class FastlaneScreenshotsTest {
 
         override fun request_permission() = Unit
 
-        override suspend fun perform_action(action: ShortcutAction) =
+        override suspend fun perform_action(action: AppActionItem) =
             ActionResult.success(action.id, "mock", false)
+    }
+
+    private class FakeCustomActionsRepository : CustomActionsRepositoryContract {
+        private val state_flow = MutableStateFlow(
+            listOf(CustomAction("custom-screenshot", "Custom action", "cmd statusbar expand-notifications"))
+        )
+
+        override val actions: StateFlow<List<CustomAction>> = state_flow
+
+        override fun add_action(label: String, shell_command: String) =
+            CustomAction("ignored", label, shell_command)
+
+        override fun update_action(action_id: String, label: String, shell_command: String) = Unit
+
+        override fun delete_action(action_id: String) = Unit
+
+        override fun find_by_id(action_id: String) = null
     }
 }

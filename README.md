@@ -6,14 +6,14 @@
 [![minSdk](https://img.shields.io/badge/minSdk-26-2ea44f)](https://developer.android.com/about/versions/android-8.0)
 [![Shizuku](https://img.shields.io/badge/powered%20by-Shizuku-4f46e5)](https://github.com/RikkaApps/Shizuku)
 
-Tiny launcher shortcuts for Android system panels through Shizuku.
+Tiny launcher shortcuts and custom shell actions for Android through Shizuku.
 
-The app currently exposes two actions:
+The app ships with two built-in actions:
 
 - open notifications
 - open Quick Settings
 
-It can run them directly from the compact home screen with `Try`, or pin them as launcher shortcuts with `Pin`.
+It can run them directly from the compact home screen with `Try`, pin them as launcher shortcuts with `Pin`, and add local custom shell actions such as `cmd statusbar expand-notifications` without the `adb shell` prefix.
 
 > [!CAUTION]
 > This project was developed with heavy use of AI assistance, including OpenAI Codex.
@@ -46,9 +46,11 @@ It can run them directly from the compact home screen with `Try`, or pin them as
 - Opens the notification shade with `cmd statusbar expand-notifications`
 - Opens Quick Settings with `cmd statusbar expand-settings`
 - Falls back to `service call statusbar 1` for notifications on older ROMs when needed
-- Exposes static launcher shortcuts and pinned launcher shortcuts
+- Lets you add local custom shell actions that run through the same Shizuku user-service path
+- Keeps built-in static launcher shortcuts and publishes custom dynamic shortcuts to the launcher long-press menu
+- Supports pinned launcher shortcuts for both built-ins and custom actions
 - Shows Shizuku state and permission state as compact status chips
-- Lets you `Try` each action from the home screen before pinning it
+- Lets you `Try`, `Edit`, `Pin`, or `Delete` custom actions from the home screen
 - Supports Android dynamic colors on Android 12+ with a fixed fallback palette on older versions
 - Supports English and Arabic with RTL
 - Uses Android app language settings, not an in-app language picker
@@ -67,31 +69,78 @@ Core pieces:
 - `ShortcutDispatchActivity`: transparent trampoline for launcher shortcuts
 - `AppShizukuManager`: binder state, permission flow, and user-service binding
 - `PrivilegedStatusBarService`: Shizuku user service binder
+- `AppCustomActionsRepository`: local custom-action persistence in one SharedPreferences JSON payload
+- `ActionCatalog` and `DynamicShortcutSync`: merged lookup plus custom dynamic shortcut publishing
 - `ActionPerformer`: shell command execution and fallback logic
 
 Runtime flow:
 
-1. User taps `Try` in the app or launches a static/pinned shortcut
+1. User taps `Try` in the app or launches a static, dynamic, or pinned shortcut
 2. The app checks Shizuku availability and permission
 3. The app binds the Shizuku user service
-4. The user service runs the status bar shell command
+4. The user service runs either the built-in argv command or `sh -c` for a custom shell action
 5. The app returns silently or shows a short toast on failure
+
+## Calling From Other Apps
+
+Built-in actions can also be triggered by other apps such as Tasker because `ShortcutDispatchActivity` is exported.
+
+Use an explicit intent to:
+
+- package: `com.yshalsager.shizukushortcuts`
+- class: `com.yshalsager.shizukushortcuts.ShortcutDispatchActivity`
+
+Built-in actions support either the intent action or the `extra_action_id` extra.
+
+Open notifications:
+
+```bash
+adb shell am start \
+  -n com.yshalsager.shizukushortcuts/.ShortcutDispatchActivity \
+  -a com.yshalsager.shizukushortcuts.action.EXPAND_NOTIFICATIONS
+```
+
+Open Quick Settings:
+
+```bash
+adb shell am start \
+  -n com.yshalsager.shizukushortcuts/.ShortcutDispatchActivity \
+  -a com.yshalsager.shizukushortcuts.action.EXPAND_QUICK_SETTINGS
+```
+
+You can also use the shared extra instead:
+
+```bash
+adb shell am start \
+  -n com.yshalsager.shizukushortcuts/.ShortcutDispatchActivity \
+  --es extra_action_id expand_notifications
+```
+
+Current built-in ids:
+
+- `expand_notifications`
+- `expand_quick_settings`
+
+Notes:
+
+- Shizuku still needs to be running and permission must already be granted
+- custom actions are internally callable by id too, but there is no public API yet to list or stabilize those ids for Tasker-style integrations
 
 Implementation details live in [docs/implementation-walkthrough.md](/Users/yshalsager/tmp/research/shizuku-shortcuts/docs/implementation-walkthrough.md).
 
 ## Build
 
-This project uses `mise` for tool management.
+This project uses [mise](https://mise.jdx.dev/) for tool management.
 
 ```bash
 # Build debug APK
-mise x java -- ./gradlew :app:assembleDebug
+./gradlew :app:assembleDebug
 
 # Run unit tests
-mise x java -- ./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest
 
 # Build Android test APK
-mise x java -- ./gradlew :app:assembleDebugAndroidTest
+./gradlew :app:assembleDebugAndroidTest
 ```
 
 ## Fastlane And Metadata
@@ -107,13 +156,13 @@ Useful commands:
 
 ```bash
 # Install fastlane
-mise x ruby -- bundle install
+bundle install
 
 # Validate fastlane metadata
-mise x ruby -- bundle exec fastlane android validate_metadata
+bundle exec fastlane android validate_metadata
 
 # Capture screenshots
-mise x ruby -- bundle exec fastlane android capture_screenshots
+bundle exec fastlane android capture_screenshots
 ```
 
 ## CI

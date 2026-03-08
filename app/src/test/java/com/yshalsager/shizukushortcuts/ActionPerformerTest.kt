@@ -44,5 +44,16 @@ class ActionPerformerTest {
 
         assertEquals(ActionResult.STATUS_UNKNOWN_ACTION, result.status_code)
     }
-}
 
+    @Test
+    fun `custom action output is capped before returning`() {
+        val long_output = "x".repeat(20_000)
+
+        val result = ActionPerformer.perform_custom_action("custom-id", "echo test") {
+            CommandRun(exit_code = 0, output = long_output)
+        }
+
+        assertTrue(result.is_success)
+        assertEquals(8_192, result.message.length)
+    }
+}

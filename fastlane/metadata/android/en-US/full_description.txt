@@ -1,14 +1,15 @@
-Shizuku Shortcuts adds tiny launcher actions for the Android status bar.
+Shizuku Shortcuts adds tiny launcher actions and custom shell actions for Android through Shizuku.
 
 Features:
 
 - Open notifications from a launcher shortcut
 - Open Quick Settings from a launcher shortcut
+- Add your own local shell actions without the `adb shell` prefix
 - Compact home screen with Shizuku and permission status chips
-- Try each action directly from the home screen
-- Pin each action to the launcher from the home screen
+- Try, edit, pin, and delete custom actions directly from the home screen
+- Built-in static shortcuts plus dynamic launcher shortcuts for custom actions
 - Dynamic colors on Android 12+ with fallback colors on older versions
 - English and Arabic with RTL support
 - App language support through Android system settings
 
-Shizuku is required because the app runs status bar shell commands through a privileged user service.
+Shizuku is required because the app runs both built-in commands and custom shell commands through a privileged user service.

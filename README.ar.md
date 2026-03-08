@@ -6,14 +6,14 @@
 [![minSdk](https://img.shields.io/badge/minSdk-26-2ea44f)](https://developer.android.com/about/versions/android-8.0)
 [![Shizuku](https://img.shields.io/badge/powered%20by-Shizuku-4f46e5)](https://github.com/RikkaApps/Shizuku)
 
-اختصارات صغيرة لفتح لوحات النظام في أندرويد عبر Shizuku.
+اختصارات صغيرة وإجراءات shell مخصصة على أندرويد عبر Shizuku.
 
-الإجراءات الحالية:
+الإجراءات المدمجة الحالية:
 
 - فتح الإشعارات
 - فتح الإعدادات السريعة
 
-يمكن تشغيلها مباشرة من الشاشة الرئيسية المختصرة عبر `جرّب` أو تثبيتها كاختصارات مشغّل عبر `ثبّت`.
+يمكن تشغيلها مباشرة من الشاشة الرئيسية المختصرة عبر `جرّب` أو تثبيتها عبر `ثبّت`، كما يمكن إضافة إجراءات shell محلية مخصصة مثل `cmd statusbar expand-notifications` من دون بادئة `adb shell`.
 
 > [!CAUTION]
 > تم تطوير هذا المشروع مع اعتماد كبير على مساعدات الذكاء الاصطناعي، بما في ذلك OpenAI Codex.
@@ -46,9 +46,11 @@
 - يفتح لوحة الإشعارات عبر `cmd statusbar expand-notifications`
 - يفتح الإعدادات السريعة عبر `cmd statusbar expand-settings`
 - يستخدم fallback لـ `service call statusbar 1` عند الحاجة لفتح الإشعارات على بعض الرومات الأقدم
-- يوفّر اختصارات ثابتة واختصارات مثبّتة في المشغّل
+- يتيح إضافة إجراءات shell محلية مخصصة تعمل عبر نفس خدمة مستخدم Shizuku
+- يحتفظ بالاختصارات الثابتة للإجراءات المدمجة وينشر اختصارات ديناميكية للإجراءات المخصصة في قائمة الضغط المطول
+- يدعم الاختصارات المثبّتة لكل من الإجراءات المدمجة والمخصصة
 - يعرض حالة Shizuku وحالة الإذن على شكل شرائح حالة مختصرة
-- يتيح `جرّب` لكل إجراء من الشاشة الرئيسية قبل تثبيته
+- يتيح `جرّب` و`عدّل` و`ثبّت` و`حذف` للإجراءات المخصصة من الشاشة الرئيسية
 - يدعم الألوان الديناميكية على Android 12+ مع ألوان بديلة على الإصدارات الأقدم
 - يدعم الإنجليزية والعربية وواجهات RTL
 - يعتمد على إعدادات لغة التطبيق في أندرويد، وليس على منتقي لغة داخل التطبيق
@@ -67,31 +69,33 @@
 - `ShortcutDispatchActivity`: Activity شفافة لاختصارات المشغّل
 - `AppShizukuManager`: حالة البايندر وطلب الإذن وربط خدمة المستخدم
 - `PrivilegedStatusBarService`: خدمة مستخدم Shizuku على شكل Binder
+- `AppCustomActionsRepository`: تخزين محلي للإجراءات المخصصة داخل SharedPreferences بصيغة JSON واحدة
+- `ActionCatalog` و `DynamicShortcutSync`: دمج كل الإجراءات ونشر الاختصارات الديناميكية للمخصصة
 - `ActionPerformer`: تنفيذ الأوامر مع منطق الـ fallback
 
 مسار التنفيذ:
 
-1. يضغط المستخدم `جرّب` أو يشغّل اختصاراً من المشغّل
+1. يضغط المستخدم `جرّب` أو يشغّل اختصاراً ثابتاً أو ديناميكياً أو مثبّتاً
 2. يتحقق التطبيق من Shizuku ومن الإذن
 3. يربط التطبيق خدمة المستخدم عبر Shizuku
-4. تنفذ خدمة المستخدم أمر شريط الحالة
+4. تنفذ خدمة المستخدم أمراً مدمجاً بصيغة argv أو أمر shell مخصص عبر `sh -c`
 5. ينتهي التنفيذ بصمت أو تظهر رسالة قصيرة عند الفشل
 
 تفاصيل التنفيذ موجودة في [docs/implementation-walkthrough.md](/Users/yshalsager/tmp/research/shizuku-shortcuts/docs/implementation-walkthrough.md).
 
 ## البناء
 
-هذا المشروع يستخدم `mise` لإدارة الأدوات.
+هذا المشروع يستخدم [mise](https://mise.jdx.dev/) لإدارة الأدوات.
 
 ```bash
 # Build debug APK
-mise x java -- ./gradlew :app:assembleDebug
+./gradlew :app:assembleDebug
 
 # Run unit tests
-mise x java -- ./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest
 
 # Build Android test APK
-mise x java -- ./gradlew :app:assembleDebugAndroidTest
+./gradlew :app:assembleDebugAndroidTest
 ```
 
 ## Fastlane و metadata
@@ -107,13 +111,13 @@ mise x java -- ./gradlew :app:assembleDebugAndroidTest
 
 ```bash
 # Install fastlane
-mise x ruby -- bundle install
+bundle install
 
 # Validate fastlane metadata
-mise x ruby -- bundle exec fastlane android validate_metadata
+bundle exec fastlane android validate_metadata
 
 # Capture screenshots
-mise x ruby -- bundle exec fastlane android capture_screenshots
+bundle exec fastlane android capture_screenshots
 ```
 
 ## CI

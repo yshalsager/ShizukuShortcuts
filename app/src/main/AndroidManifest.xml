@@ -24,6 +24,8 @@
         <activity
             android:name='.ShortcutDispatchActivity'
             android:exported='true'
+            android:excludeFromRecents='true'
+            android:noHistory='true'
             android:theme='@style/Theme.ShizukuShortcuts.Transparent' />
 
         <activity

@@ -6,7 +6,7 @@ This document walks through the app from build setup to the final privileged she
 
 The project is a single Android app module using Kotlin DSL, Compose, SDK 36, and a minified release build.
 
-File: [app/build.gradle.kts](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/build.gradle.kts)
+File: [app/build.gradle.kts](../app/build.gradle.kts)
 
 ```kotlin
 android {
@@ -43,7 +43,7 @@ android {
 
 `mise` is pinned at the repo root.
 
-File: [mise.toml](/Users/yshalsager/tmp/research/shizuku-shortcuts/mise.toml)
+File: [mise.toml](../mise.toml)
 
 ```toml
 [tools]
@@ -59,7 +59,7 @@ The app has four important manifest entries:
 - `ShortcutDispatchActivity` is the transparent shortcut trampoline
 - `localeConfig` exposes app languages to Android system settings
 
-File: [AndroidManifest.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/AndroidManifest.xml)
+File: [AndroidManifest.xml](../app/src/main/AndroidManifest.xml)
 
 ```xml
 <application
@@ -95,7 +95,7 @@ File: [AndroidManifest.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app
 
 The locale config itself is small and platform-owned.
 
-File: [locales_config.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/res/xml/locales_config.xml)
+File: [locales_config.xml](../app/src/main/res/xml/locales_config.xml)
 
 ```xml
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
@@ -104,9 +104,9 @@ File: [locales_config.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/
 </locale-config>
 ```
 
-## 3. One action registry for everything
+## 3. Built-in actions and custom actions
 
-Both supported actions live in a single registry:
+The built-in actions still live in a single hardcoded registry:
 
 - stable action id
 - launcher intent action
@@ -114,7 +114,7 @@ Both supported actions live in a single registry:
 - primary shell command
 - optional fallback commands
 
-File: [ShortcutAction.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutAction.kt)
+File: [ShortcutAction.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutAction.kt)
 
 ```kotlin
 val expand_notifications = ShortcutAction(
@@ -137,21 +137,51 @@ val expand_quick_settings = ShortcutAction(
 )
 ```
 
-The same file also builds the intent used by both static and pinned shortcuts.
+Custom actions are stored separately as local data:
+
+- `id`
+- `label`
+- `shell_command`
+
+File: [CustomAction.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/CustomAction.kt)
 
 ```kotlin
-fun build_dispatch_intent(context: Context, action: ShortcutAction) =
-    Intent(context, ShortcutDispatchActivity::class.java)
-        .setAction(action.shortcut_intent_action)
-        .putExtra(extra_action_id, action.id)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+data class CustomAction(
+    val id: String,
+    val label: String,
+    val shell_command: String
+)
 ```
 
-## 4. Static launcher shortcuts
+They are persisted in one SharedPreferences JSON string and refreshed into launcher dynamic shortcuts whenever the list changes:
 
-The launcher long-press shortcuts are declared in XML.
+```kotlin
+private fun save_actions(actions: List<CustomAction>) {
+    shared_preferences.edit().putString(actions_key, serialize_custom_actions(actions)).apply()
+    state_flow.value = actions
+    DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
+}
+```
 
-File: [shortcuts.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/res/xml/shortcuts.xml)
+The merged lookup layer is `ActionCatalog`, which turns built-ins and customs into one UI and dispatch model.
+
+File: [ActionCatalog.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ActionCatalog.kt)
+
+```kotlin
+fun find_by_id(context: Context, action_id: String?): AppActionItem? {
+    if (action_id == null) return null
+    return built_in_actions(context).firstOrNull { it.id == action_id }
+        ?: custom_actions(context).firstOrNull { it.id == action_id }
+}
+```
+
+The same catalog builds the dispatch intent used by dynamic and pinned shortcuts.
+
+## 4. Static, dynamic, and pinned shortcuts
+
+The built-in launcher long-press shortcuts are declared in XML.
+
+File: [shortcuts.xml](../app/src/main/res/xml/shortcuts.xml)
 
 ```xml
 <shortcut
@@ -167,7 +197,26 @@ File: [shortcuts.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/m
 </shortcut>
 ```
 
-Pinned home-screen shortcuts use the same registry, so there is one source of truth.
+Custom actions cannot use XML static shortcuts, so they are published as dynamic shortcuts at runtime.
+
+```kotlin
+val dynamic_shortcuts = published_custom_actions(custom_actions, shortcut_manager.maxShortcutCountPerActivity)
+    .map { action ->
+        ShortcutInfo.Builder(context, action.id)
+            .setShortLabel(action.label)
+            .setLongLabel(action.label)
+            .setIcon(Icon.createWithResource(context, R.drawable.ic_shortcut_custom_action))
+            .setIntent(
+                Intent(context, ShortcutDispatchActivity::class.java)
+                    .putExtra(ShortcutActions.extra_action_id, action.id)
+            )
+            .build()
+    }
+
+shortcut_manager.dynamicShortcuts = dynamic_shortcuts
+```
+
+Pinned home-screen shortcuts for both built-ins and customs go through the same `ActionCatalog.build_pinned_shortcut()` path.
 
 ## 5. MainActivity: condensed home screen
 
@@ -176,20 +225,27 @@ Pinned home-screen shortcuts use the same registry, so there is one source of tr
 - two side-by-side status chips
 - inline guidance only when Shizuku is stopped or permission is missing
 - a button to request permission when needed
-- two compact action rows
+- a built-in actions section
+- a custom actions section with `Add`
 - a `Try` text action and a `Pin` icon action for each row
+- `Edit` and `Delete` for custom rows
 
-File: [MainActivity.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt)
+File: [MainActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt)
 
 ```kotlin
 setContent {
     val state by manager.state.collectAsState()
+    val custom_actions by custom_actions_repository.actions.collectAsState()
     MainScreen(
         state = state,
+        custom_actions = custom_actions,
         inbound_message = inbound_message,
         on_request_permission = manager::request_permission,
         on_try_action = ::try_action,
-        on_pin_shortcut = ::pin_shortcut
+        on_pin_shortcut = ::pin_shortcut,
+        on_add_custom_action = ::add_custom_action,
+        on_update_custom_action = custom_actions_repository::update_action,
+        on_delete_custom_action = custom_actions_repository::delete_action
     )
 }
 ```
@@ -205,12 +261,47 @@ LazyColumn(
 )
 ```
 
-Each action row now has both direct execution and pinning:
+The custom section uses one small dialog for both add and edit:
+
+```kotlin
+AddCustomActionDialog(
+    colors = colors,
+    title = stringResource(if (editing_action == null) R.string.add_custom_action_title else R.string.edit_custom_action_title),
+    submit_label = stringResource(if (editing_action == null) R.string.add_custom_action else R.string.save_action),
+    on_submit = { label, shell_command ->
+        val error = validate_custom_action(label, shell_command)
+        if (error == null) {
+            editing_action?.let { on_update_custom_action(it.id, label, shell_command) }
+                ?: on_add_custom_action(label, shell_command)
+        }
+        error
+    }
+)
+```
+
+Validation rejects empty values and `adb shell ...` input:
+
+```kotlin
+fun validate_custom_action(label: String, shell_command: String): Int? {
+    val trimmed_label = label.trim()
+    val trimmed_command = shell_command.trim()
+
+    return when {
+        trimmed_label.isEmpty() -> R.string.custom_action_label_required
+        trimmed_command.isEmpty() -> R.string.custom_action_command_required
+        trimmed_command.startsWith("adb shell", ignoreCase = true) -> R.string.custom_action_strip_adb
+        else -> null
+    }
+}
+```
+
+Each action row now has direct execution and pinning, and custom rows also expose edit/delete:
 
 ```kotlin
 ActionRow(
     colors = colors,
-    action = ShortcutActions.expand_notifications,
+    action = action,
+    is_ready = is_ready,
     on_try_action = on_try_action,
     on_pin_shortcut = on_pin_shortcut
 )
@@ -219,13 +310,15 @@ ActionRow(
 The `Try` flow runs the action immediately from the app:
 
 ```kotlin
-private fun try_action(action: ShortcutAction) {
+private fun try_action(action: AppActionItem) {
     lifecycleScope.launch {
         val result = manager.perform_action(action)
         val message = when (result.status_code) {
-            ActionResult.STATUS_SUCCESS -> getString(
-                if (action == ShortcutActions.expand_notifications) R.string.try_notifications_success else R.string.try_quick_settings_success
-            )
+            ActionResult.STATUS_SUCCESS -> getString(when (action.id) {
+                ShortcutActions.expand_notifications.id -> R.string.try_notifications_success
+                ShortcutActions.expand_quick_settings.id -> R.string.try_quick_settings_success
+                else -> R.string.try_custom_action_success
+            })
             ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
             ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
             else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
@@ -239,12 +332,10 @@ private fun try_action(action: ShortcutAction) {
 The pin flow stays intentionally thin:
 
 ```kotlin
-private fun pin_shortcut(action: ShortcutAction) {
-    val shortcut = ShortcutActions.build_pinned_shortcut(this, action)
+private fun pin_shortcut(action: AppActionItem) {
+    val shortcut = ActionCatalog.build_pinned_shortcut(this, action)
     val was_requested = ShortcutManagerCompat.requestPinShortcut(this, shortcut, null)
-    Toast.makeText(this, getString(
-        if (was_requested) R.string.pin_success else R.string.pin_failed
-    ), Toast.LENGTH_SHORT).show()
+    Toast.makeText(this, getString(if (was_requested) R.string.pin_success else R.string.pin_failed), Toast.LENGTH_SHORT).show()
 }
 ```
 
@@ -252,7 +343,7 @@ private fun pin_shortcut(action: ShortcutAction) {
 
 The app uses Android 12+ dynamic colors when available and falls back to a fixed palette on older versions.
 
-File: [Theme.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ui/theme/Theme.kt)
+File: [Theme.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ui/theme/Theme.kt)
 
 ```kotlin
 @Composable
@@ -270,7 +361,7 @@ fun shizuku_shortcuts_colors(): AppColors {
 
 The dynamic palette is mapped from Android's system accent and neutral colors, with light and dark roles following the platform tonal scale.
 
-Arabic strings live in [values-ar/strings.xml](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/res/values-ar/strings.xml), and language switching is handled by Android settings rather than by in-app UI.
+Arabic strings live in [values-ar/strings.xml](../app/src/main/res/values-ar/strings.xml), and language switching is handled by Android settings rather than by in-app UI.
 
 ## 7. Shizuku state and permission
 
@@ -280,7 +371,7 @@ Arabic strings live in [values-ar/strings.xml](/Users/yshalsager/tmp/research/sh
 - permission requests
 - binding to the remote user service
 
-File: [ShizukuManager.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ShizukuManager.kt)
+File: [ShizukuManager.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShizukuManager.kt)
 
 It listens for binder and permission changes:
 
@@ -316,13 +407,14 @@ override fun request_permission() {
 ## 8. Shortcut dispatch
 
 When the user taps a launcher shortcut, `ShortcutDispatchActivity` starts first.
+It stays a lightweight trampoline and finishes normally so it does not tear down an existing app task.
 
-File: [ShortcutDispatchActivity.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivity.kt)
+File: [ShortcutDispatchActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivity.kt)
 
 It resolves the action and runs it through the manager:
 
 ```kotlin
-val action = ShortcutActions.find_by_intent(intent)
+val action = ActionCatalog.find_by_intent(this, intent)
 if (action == null) {
     Toast.makeText(this, getString(R.string.dispatch_missing_action), Toast.LENGTH_SHORT).show()
     finish()
@@ -351,7 +443,7 @@ private fun open_setup(message: String) {
 
 The privileged work does not run in the app process. The app binds a Shizuku `UserService`.
 
-File: [ShizukuManager.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ShizukuManager.kt)
+File: [ShizukuManager.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShizukuManager.kt)
 
 ```kotlin
 private val user_service_args = Shizuku.UserServiceArgs(
@@ -359,7 +451,7 @@ private val user_service_args = Shizuku.UserServiceArgs(
 )
     .daemon(false)
     .tag("statusbar_shortcuts")
-    .version(1)
+    .version(2)
     .processNameSuffix("statusbar_shortcuts")
 ```
 
@@ -371,7 +463,7 @@ runCatching { Shizuku.bindUserService(user_service_args, connection) }
         finish(
             ActionResult.execution_failed(
                 action_id = action.id,
-                executed_command = action.primary_command.joinToString(" "),
+                executed_command = action.shell_command ?: action.id,
                 message = exception.message ?: "Could not bind user service"
             )
         )
@@ -384,11 +476,14 @@ When connected, the app talks to the remote binder:
 override fun onServiceConnected(name: ComponentName, service: IBinder) {
     worker_scope.launch {
         val remote = IPrivilegedStatusBarService.Stub.asInterface(service)
-        val result = runCatching { remote.perform_action(action.id) }
+        val result = runCatching {
+            action.shell_command?.let { remote.perform_custom_action(action.id, it) }
+                ?: remote.perform_action(action.id)
+        }
             .getOrElse { exception ->
                 ActionResult.execution_failed(
                     action_id = action.id,
-                    executed_command = action.primary_command.joinToString(" "),
+                    executed_command = action.shell_command ?: action.id,
                     message = exception.message ?: "Remote execution failed"
                 )
             }
@@ -399,16 +494,17 @@ override fun onServiceConnected(name: ComponentName, service: IBinder) {
 
 ## 10. Binder contract
 
-The binder interface is intentionally small: one method that accepts an action id and returns an `ActionResult`.
+The binder interface stays intentionally small: one method for built-ins and one method for custom shell commands.
 
 Files:
 
-- [IPrivilegedStatusBarService.aidl](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/aidl/com/yshalsager/shizukushortcuts/IPrivilegedStatusBarService.aidl)
-- [ActionResult.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ActionResult.kt)
+- [IPrivilegedStatusBarService.aidl](../app/src/main/aidl/com/yshalsager/shizukushortcuts/IPrivilegedStatusBarService.aidl)
+- [ActionResult.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ActionResult.kt)
 
 ```aidl
 interface IPrivilegedStatusBarService {
     ActionResult perform_action(String action_id);
+    ActionResult perform_custom_action(String action_id, String shell_command);
 }
 ```
 
@@ -426,11 +522,13 @@ data class ActionResult(
 
 The Shizuku service itself is tiny. The important detail is that this is not a normal Android `Service`. It must be the binder object itself for Shizuku `bindUserService()`.
 
-File: [PrivilegedStatusBarService.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/PrivilegedStatusBarService.kt)
+File: [PrivilegedStatusBarService.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/PrivilegedStatusBarService.kt)
 
 ```kotlin
 class PrivilegedStatusBarService : IPrivilegedStatusBarService.Stub() {
     override fun perform_action(action_id: String) = ActionPerformer.perform_action(action_id)
+    override fun perform_custom_action(action_id: String, shell_command: String) =
+        ActionPerformer.perform_custom_action(action_id, shell_command)
 }
 ```
 
@@ -440,7 +538,7 @@ This shape matters because an earlier `Service()` implementation failed at runti
 
 `ActionPerformer` is where the actual status bar command is chosen and executed.
 
-File: [ActionPerformer.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/main/java/com/yshalsager/shizukushortcuts/ActionPerformer.kt)
+File: [ActionPerformer.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ActionPerformer.kt)
 
 It loops over the primary command and any fallbacks until one succeeds:
 
@@ -491,20 +589,33 @@ val output = process.inputStream.bufferedReader().use { it.readText().trim() }
 val exit_code = process.waitFor()
 ```
 
+Custom actions use one direct shell command path:
+
+```kotlin
+fun perform_custom_action(action_id: String, shell_command: String, command_runner: CommandRunner = ProcessCommandRunner): ActionResult {
+    val command = listOf("sh", "-c", shell_command)
+    ...
+}
+```
+
+The custom command output is capped before it is copied into `ActionResult.message` so large stdout or stderr does not break the Binder call back to the app.
+
 In practice this means:
 
 - notifications tries `cmd statusbar expand-notifications`
 - notifications falls back to `service call statusbar 1`
 - quick settings tries `cmd statusbar expand-settings`
+- custom actions run exactly what the user entered through `sh -c`
+- custom action results keep only a bounded slice of command output for Binder safety
 
 ## 13. Tests
 
-There are three test surfaces:
+There are four test surfaces:
 
-- command and fallback behavior in [ActionPerformerTest.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/test/java/com/yshalsager/shizukushortcuts/ActionPerformerTest.kt)
-- Shizuku service contract in [PrivilegedStatusBarServiceTest.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/test/java/com/yshalsager/shizukushortcuts/PrivilegedStatusBarServiceTest.kt)
-- XML/registry consistency in [ShortcutXmlSyncTest.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/test/java/com/yshalsager/shizukushortcuts/ShortcutXmlSyncTest.kt)
-- instrumentation-side dispatch flow in [ShortcutDispatchActivityTest.kt](/Users/yshalsager/tmp/research/shizuku-shortcuts/app/src/androidTest/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivityTest.kt)
+- built-in fallback behavior plus custom-command execution in [ActionPerformerTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/ActionPerformerTest.kt) and [CustomActionTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/CustomActionTest.kt)
+- Shizuku service contract in [PrivilegedStatusBarServiceTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/PrivilegedStatusBarServiceTest.kt)
+- XML/registry consistency in [ShortcutXmlSyncTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/ShortcutXmlSyncTest.kt)
+- instrumentation-side dispatch, catalog, and custom-action UI coverage in [ShortcutDispatchActivityTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivityTest.kt), [ActionCatalogTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ActionCatalogTest.kt), and [CustomActionsUiTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/CustomActionsUiTest.kt)
 
 Example fallback test:
 
@@ -532,12 +643,13 @@ assertTrue(IPrivilegedStatusBarService.Stub::class.java.isAssignableFrom(Privile
 
 The runtime path is:
 
-1. User opens the home screen or taps a static or pinned launcher shortcut
+1. User opens the home screen or taps a static, dynamic, or pinned launcher shortcut
 2. Home screen `Try` buttons call `AppShizukuManager.perform_action()` directly
 3. Launcher shortcuts go through `ShortcutDispatchActivity`
-4. `AppShizukuManager` checks whether Shizuku is running and permission is granted
-5. The app binds `PrivilegedStatusBarService` through Shizuku
-6. The app calls `perform_action(action_id)` over Binder
-7. `ActionPerformer` runs the shell command in the privileged user service process
-8. The result is returned to the app
-9. The UI either shows a small toast, finishes silently, or routes the user back to setup
+4. `ActionCatalog` resolves the requested built-in or custom action
+5. `AppShizukuManager` checks whether Shizuku is running and permission is granted
+6. The app binds `PrivilegedStatusBarService` through Shizuku
+7. The app calls either `perform_action(action_id)` or `perform_custom_action(action_id, shell_command)` over Binder
+8. `ActionPerformer` runs the built-in argv command or the custom `sh -c` command in the privileged user service process
+9. The result is returned to the app
+10. The UI either shows a small toast, finishes silently, or routes the user back to setup
