@@ -80,7 +80,7 @@ jobs:
 
       - name: Create or update PR
         if: ${{ inputs.create_pr && steps.changes.outputs.changed == 'true' }}
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/update-fastlane-screenshots
           delete-branch: false
