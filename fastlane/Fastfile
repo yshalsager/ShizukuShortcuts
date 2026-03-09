@@ -20,6 +20,16 @@ def screenshot_test_package
   'com.yshalsager.shizukushortcuts.screenshots'
 end
 
+def adb_binary_path
+  sdk_root = ENV['ANDROID_HOME'] || ENV['ANDROID_SDK_ROOT'] || ENV['ANDROID_SDK']
+  if sdk_root.to_s.empty?
+    local_properties = repo_path('local.properties')
+    sdk_root = File.read(local_properties)[/^sdk\.dir=(.+)$/, 1]&.strip if File.exist?(local_properties)
+  end
+  UI.user_error!('ANDROID_HOME or ANDROID_SDK_ROOT must be set') if sdk_root.to_s.empty?
+  File.join(sdk_root, 'platform-tools', 'adb')
+end
+
 platform :android do
   desc 'Validate fastlane metadata basics'
   lane :validate_metadata do
@@ -39,18 +49,29 @@ platform :android do
 
   desc 'Capture app screenshots for en-US and ar'
   lane :capture_screenshots do
-    screengrab(
-      locales: ['en-US', 'ar'],
-      clear_previous_screenshots: true,
-      output_directory: metadata_path,
-      app_apk_path: debug_app_apk_path,
-      tests_apk_path: debug_tests_apk_path,
-      use_tests_in_packages: screenshot_test_package,
-      app_package_name: 'com.yshalsager.shizukushortcuts',
-      tests_package_name: 'com.yshalsager.shizukushortcuts.test',
-      use_timestamp_suffix: false,
-      skip_open_summary: true
-    )
+    device = adb_devices(adb_path: adb_binary_path).first
+    UI.user_error!('There are no connected and authorized devices or emulators') unless device
+
+    ['en-US', 'ar'].each_with_index do |locale, index|
+      adb(adb_path: adb_binary_path, serial: device.serial, command: 'root')
+      adb(adb_path: adb_binary_path, serial: device.serial, command: 'wait-for-device')
+      adb(adb_path: adb_binary_path, serial: device.serial, command: 'shell date 030912202026.00')
+
+      screengrab(
+        locales: [locale],
+        clear_previous_screenshots: index.zero?,
+        output_directory: metadata_path,
+        app_apk_path: debug_app_apk_path,
+        tests_apk_path: debug_tests_apk_path,
+        use_tests_in_packages: screenshot_test_package,
+        app_package_name: 'com.yshalsager.shizukushortcuts',
+        tests_package_name: 'com.yshalsager.shizukushortcuts.test',
+        use_timestamp_suffix: false,
+        skip_open_summary: true,
+        specific_device: device.serial,
+        use_adb_root: true
+      )
+    end
   end
 
   desc 'Upload signed release bundle to Google Play'
