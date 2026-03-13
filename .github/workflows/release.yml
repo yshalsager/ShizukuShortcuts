@@ -79,7 +79,7 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v4
         with:
           cache: true
           cache_key_prefix: 'mise-v1'
@@ -257,7 +257,7 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v4
         with:
           cache: true
           cache_key_prefix: 'mise-v1'
