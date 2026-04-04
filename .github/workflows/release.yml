@@ -262,7 +262,7 @@ jobs:
           cache: true
           cache_key_prefix: 'mise-v1'
 
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Verify fastlane changelogs for current versionCode
         shell: bash
