@@ -8,10 +8,12 @@
 
 Tiny launcher shortcuts, home-screen widgets, and custom shell actions for Android through Shizuku.
 
-The app ships with two built-in actions:
+The app ships with four built-in actions:
 
 - open notifications
 - open Quick Settings
+- take screenshot
+- screen off
 
 It can run them directly from the compact home screen with `Try`, pin them as launcher shortcuts with `Pin`, place them as home-screen widgets, and add local custom shell actions such as `cmd statusbar expand-notifications` without the `adb shell` prefix.
 
@@ -53,6 +55,8 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 - Re-routes widget taps through `ShortcutDispatchActivity` and shows a rebind prompt if a linked custom action is removed
 - Shows Shizuku state and permission state as compact status chips
 - Lets you `Try`, `Edit`, `Pin`, or `Delete` custom actions from the home screen
+- Supports manual backup/restore for custom actions via Android file picker (replace-all restore)
+- Exports backup files as JSON with timestamped default names like `shizuku-custom-actions-backup-20260404-153045.json`
 - Supports Android dynamic colors on Android 12+ with a fixed fallback palette on older versions
 - Supports English and Arabic with RTL
 - Uses Android app language settings, not an in-app language picker
@@ -72,6 +76,7 @@ Core pieces:
 - `AppShizukuManager`: binder state, permission flow, and user-service binding
 - `PrivilegedStatusBarService`: Shizuku user service binder
 - `AppCustomActionsRepository`: local custom-action persistence in one SharedPreferences JSON payload
+- `CustomActionsBackup`: backup file naming, JSON serialization/parsing, and SAF read/write helpers
 - `ActionCatalog` and `DynamicShortcutSync`: merged lookup plus custom dynamic shortcut publishing
 - `ActionPerformer`: shell command execution and fallback logic
 - `ActionWidgetProvider`, `ActionWidgetConfigureActivity`, `ActionWidgetRenderer`, and `WidgetBindingsRepository`: widget lifecycle, selection UI, rendering, and per-widget action binding
