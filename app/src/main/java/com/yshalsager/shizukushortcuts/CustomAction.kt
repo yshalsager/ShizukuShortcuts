@@ -81,6 +81,7 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
         shortcut_sync_scope.launch {
             deleted_action_id?.let { DynamicShortcutSync.delete_custom_shortcut(app_context, it) }
             DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
+            ActionWidgetProvider.refresh_widgets(app_context)
         }
     }
 }

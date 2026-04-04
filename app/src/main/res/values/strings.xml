@@ -38,4 +38,8 @@
     <string name='dispatch_need_shizuku'>Start Shizuku, then try the shortcut again.</string>
     <string name='dispatch_need_permission'>Grant Shizuku permission, then try the shortcut again.</string>
     <string name='dispatch_failed'>Command failed</string>
+    <string name='widget_name'>Shizuku Action</string>
+    <string name='widget_configure_title'>Choose widget action</string>
+    <string name='widget_choose_action_prompt'>Pick one action for this widget tile.</string>
+    <string name='widget_action_removed'>Action removed</string>
 </resources>

@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android='http://schemas.android.com/apk/res/android'
+    android:id='@+id/widget_root'
+    android:layout_width='match_parent'
+    android:layout_height='match_parent'
+    android:background='@android:color/transparent'
+    android:gravity='center'
+    android:orientation='horizontal'
+    android:paddingHorizontal='12dp'
+    android:paddingVertical='10dp'>
+
+    <ImageView
+        android:id='@+id/widget_icon'
+        android:layout_width='20dp'
+        android:layout_height='20dp'
+        android:layout_marginEnd='8dp'
+        android:contentDescription='@null'
+        android:src='@drawable/ic_shortcut_notifications'
+        android:tint='@android:color/white' />
+
+    <TextView
+        android:id='@+id/widget_label'
+        android:layout_width='wrap_content'
+        android:layout_height='wrap_content'
+        android:ellipsize='end'
+        android:maxLines='1'
+        android:text='@string/open_notifications'
+        android:textColor='@android:color/white'
+        android:textSize='14sp'
+        android:textStyle='bold' />
+</LinearLayout>

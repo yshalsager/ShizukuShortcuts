@@ -38,4 +38,8 @@
     <string name='dispatch_need_shizuku'>شغّل Shizuku ثم أعد المحاولة.</string>
     <string name='dispatch_need_permission'>امنح إذن Shizuku ثم أعد المحاولة.</string>
     <string name='dispatch_failed'>فشل الأمر</string>
+    <string name='widget_name'>إجراء Shizuku</string>
+    <string name='widget_configure_title'>اختر إجراء الودجت</string>
+    <string name='widget_choose_action_prompt'>اختر إجراءً واحداً لهذا الودجت.</string>
+    <string name='widget_action_removed'>تمت إزالة الإجراء</string>
 </resources>
