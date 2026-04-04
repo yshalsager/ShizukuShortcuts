@@ -21,6 +21,8 @@ object ShortcutActions {
 
     private const val notifications_intent_action = "com.yshalsager.shizukushortcuts.action.EXPAND_NOTIFICATIONS"
     private const val quick_settings_intent_action = "com.yshalsager.shizukushortcuts.action.EXPAND_QUICK_SETTINGS"
+    private const val screenshot_intent_action = "com.yshalsager.shizukushortcuts.action.TAKE_SCREENSHOT"
+    private const val screen_off_intent_action = "com.yshalsager.shizukushortcuts.action.SCREEN_OFF"
 
     val expand_notifications = ShortcutAction(
         id = "expand_notifications",
@@ -41,7 +43,25 @@ object ShortcutActions {
         primary_command = listOf("cmd", "statusbar", "expand-settings")
     )
 
-    val all = listOf(expand_notifications, expand_quick_settings)
+    val take_screenshot = ShortcutAction(
+        id = "take_screenshot",
+        shortcut_intent_action = screenshot_intent_action,
+        short_label_res = R.string.take_screenshot,
+        long_label_res = R.string.take_screenshot_long,
+        icon_res = R.drawable.ic_shortcut_screenshot,
+        primary_command = listOf("input", "keyevent", "120")
+    )
+
+    val screen_off = ShortcutAction(
+        id = "screen_off",
+        shortcut_intent_action = screen_off_intent_action,
+        short_label_res = R.string.screen_off,
+        long_label_res = R.string.screen_off_long,
+        icon_res = R.drawable.ic_shortcut_screen_off,
+        primary_command = listOf("input", "keyevent", "26")
+    )
+
+    val all = listOf(expand_notifications, expand_quick_settings, take_screenshot, screen_off)
     val ids = all.map { it.id }
 
     fun find_by_id(action_id: String?) = all.firstOrNull { it.id == action_id }

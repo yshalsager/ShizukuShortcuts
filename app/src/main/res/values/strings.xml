@@ -10,6 +10,10 @@
     <string name='open_notifications_long'>Open the notification shade</string>
     <string name='open_quick_settings'>Open Quick Settings</string>
     <string name='open_quick_settings_long'>Open the Quick Settings panel</string>
+    <string name='take_screenshot'>Take screenshot</string>
+    <string name='take_screenshot_long'>Capture a screenshot</string>
+    <string name='screen_off'>Screen off</string>
+    <string name='screen_off_long'>Turn the screen off</string>
     <string name='custom_actions_title'>Custom Actions</string>
     <string name='add_custom_action'>Add</string>
     <string name='add_custom_action_title'>Add custom action</string>
@@ -33,6 +37,8 @@
     <string name='pin_failed'>Could not create the shortcut</string>
     <string name='try_notifications_success'>Opened notifications</string>
     <string name='try_quick_settings_success'>Opened Quick Settings</string>
+    <string name='try_screenshot_success'>Captured screenshot</string>
+    <string name='try_screen_off_success'>Turned screen off</string>
     <string name='try_custom_action_success'>Action ran</string>
     <string name='dispatch_missing_action'>Unknown shortcut action</string>
     <string name='dispatch_need_shizuku'>Start Shizuku, then try the shortcut again.</string>

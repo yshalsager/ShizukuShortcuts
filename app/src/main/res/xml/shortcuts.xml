@@ -26,5 +26,30 @@
             android:targetClass='com.yshalsager.shizukushortcuts.ShortcutDispatchActivity'
             android:targetPackage='com.yshalsager.shizukushortcuts' />
     </shortcut>
-</shortcuts>
 
+    <shortcut
+        android:enabled='true'
+        android:icon='@drawable/ic_shortcut_screenshot'
+        android:shortcutId='take_screenshot'
+        android:shortcutLongLabel='@string/take_screenshot_long'
+        android:shortcutShortLabel='@string/take_screenshot'>
+
+        <intent
+            android:action='com.yshalsager.shizukushortcuts.action.TAKE_SCREENSHOT'
+            android:targetClass='com.yshalsager.shizukushortcuts.ShortcutDispatchActivity'
+            android:targetPackage='com.yshalsager.shizukushortcuts' />
+    </shortcut>
+
+    <shortcut
+        android:enabled='true'
+        android:icon='@drawable/ic_shortcut_screen_off'
+        android:shortcutId='screen_off'
+        android:shortcutLongLabel='@string/screen_off_long'
+        android:shortcutShortLabel='@string/screen_off'>
+
+        <intent
+            android:action='com.yshalsager.shizukushortcuts.action.SCREEN_OFF'
+            android:targetClass='com.yshalsager.shizukushortcuts.ShortcutDispatchActivity'
+            android:targetPackage='com.yshalsager.shizukushortcuts' />
+    </shortcut>
+</shortcuts>

@@ -39,6 +39,20 @@ class ActionPerformerTest {
     }
 
     @Test
+    fun `screen off action stays on primary command`() {
+        val attempted_commands = mutableListOf<List<String>>()
+
+        val result = ActionPerformer.perform_action(ShortcutActions.screen_off.id) { command ->
+            attempted_commands += command
+            CommandRun(exit_code = 0, output = "")
+        }
+
+        assertTrue(result.is_success)
+        assertFalse(result.used_fallback)
+        assertEquals(listOf(ShortcutActions.screen_off.primary_command), attempted_commands)
+    }
+
+    @Test
     fun `unknown action returns unknown status`() {
         val result = ActionPerformer.perform_action("missing")
 

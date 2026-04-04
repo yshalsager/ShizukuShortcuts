@@ -116,6 +116,8 @@ class MainActivity : ComponentActivity() {
                     when (action.id) {
                         ShortcutActions.expand_notifications.id -> R.string.try_notifications_success
                         ShortcutActions.expand_quick_settings.id -> R.string.try_quick_settings_success
+                        ShortcutActions.take_screenshot.id -> R.string.try_screenshot_success
+                        ShortcutActions.screen_off.id -> R.string.try_screen_off_success
                         else -> R.string.try_custom_action_success
                     }
                 )

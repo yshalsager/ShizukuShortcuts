@@ -10,6 +10,10 @@
     <string name='open_notifications_long'>فتح لوحة الإشعارات</string>
     <string name='open_quick_settings'>فتح الإعدادات السريعة</string>
     <string name='open_quick_settings_long'>فتح لوحة الإعدادات السريعة</string>
+    <string name='take_screenshot'>التقاط لقطة شاشة</string>
+    <string name='take_screenshot_long'>التقاط لقطة للشاشة</string>
+    <string name='screen_off'>إطفاء الشاشة</string>
+    <string name='screen_off_long'>إيقاف تشغيل الشاشة</string>
     <string name='custom_actions_title'>إجراءات مخصصة</string>
     <string name='add_custom_action'>إضافة</string>
     <string name='add_custom_action_title'>إضافة إجراء مخصص</string>
@@ -33,6 +37,8 @@
     <string name='pin_failed'>تعذر إنشاء الاختصار</string>
     <string name='try_notifications_success'>تم فتح الإشعارات</string>
     <string name='try_quick_settings_success'>تم فتح الإعدادات السريعة</string>
+    <string name='try_screenshot_success'>تم التقاط لقطة شاشة</string>
+    <string name='try_screen_off_success'>تم إطفاء الشاشة</string>
     <string name='try_custom_action_success'>تم تشغيل الإجراء</string>
     <string name='dispatch_missing_action'>إجراء اختصار غير معروف</string>
     <string name='dispatch_need_shizuku'>شغّل Shizuku ثم أعد المحاولة.</string>
