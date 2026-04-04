@@ -2,7 +2,9 @@ package com.yshalsager.shizukushortcuts
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
 
 class CustomActionTest {
     @Test
@@ -13,6 +15,50 @@ class CustomActionTest {
         )
 
         assertEquals(actions, parse_custom_actions(serialize_custom_actions(actions)))
+    }
+
+    @Test
+    fun `custom actions backup roundtrip preserves ids`() {
+        val actions = listOf(
+            CustomAction("id-1", "Open notifications", "cmd statusbar expand-notifications"),
+            CustomAction("id-2", "Show settings", "cmd statusbar expand-settings")
+        )
+
+        val restored_actions = parse_custom_actions_backup(serialize_custom_actions_backup(actions))
+
+        assertEquals(actions, restored_actions)
+    }
+
+    @Test
+    fun `custom actions backup rejects malformed json`() {
+        assertTrue(runCatching { parse_custom_actions_backup("not-json") }.isFailure)
+    }
+
+    @Test
+    fun `custom actions backup rejects unsupported version`() {
+        val invalid_backup = """{"version":2,"actions":[]}"""
+
+        assertTrue(runCatching { parse_custom_actions_backup(invalid_backup) }.isFailure)
+    }
+
+    @Test
+    fun `custom actions backup rejects duplicate ids`() {
+        val invalid_backup = """
+            {"version":1,"actions":[
+                {"id":"dup","label":"One","shell_command":"one"},
+                {"id":"dup","label":"Two","shell_command":"two"}
+            ]}
+        """.trimIndent()
+
+        assertTrue(runCatching { parse_custom_actions_backup(invalid_backup) }.isFailure)
+    }
+
+    @Test
+    fun `custom actions backup file name includes timestamp`() {
+        assertEquals(
+            "shizuku-custom-actions-backup-20260404-153045.json",
+            custom_actions_backup_file_name(LocalDateTime.of(2026, 4, 4, 15, 30, 45))
+        )
     }
 
     @Test

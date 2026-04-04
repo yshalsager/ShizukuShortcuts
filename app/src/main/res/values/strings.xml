@@ -22,6 +22,15 @@
     <string name='custom_action_shell_command'>Shell command</string>
     <string name='custom_action_shell_placeholder'>cmd statusbar expand-notifications</string>
     <string name='custom_actions_empty'>No custom actions yet. Add one to run and pin your own shell command.</string>
+    <string name='custom_actions_backup'>Backup</string>
+    <string name='custom_actions_restore'>Restore</string>
+    <string name='custom_actions_backup_success'>Backup saved</string>
+    <string name='custom_actions_backup_failed'>Could not save backup</string>
+    <string name='custom_actions_restore_success'>Custom actions restored</string>
+    <string name='custom_actions_restore_failed'>Could not restore backup file</string>
+    <string name='custom_actions_restore_confirm_title'>Replace custom actions?</string>
+    <string name='custom_actions_restore_confirm_message'>This will replace current custom actions with %1$d imported actions.</string>
+    <string name='custom_actions_restore_confirm_action'>Restore</string>
     <string name='custom_action_label_required'>Enter a label.</string>
     <string name='custom_action_command_required'>Enter a shell command.</string>
     <string name='custom_action_strip_adb'>Enter only the shell command, without the `adb shell` prefix.</string>

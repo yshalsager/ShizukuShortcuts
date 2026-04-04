@@ -76,6 +76,10 @@ class CustomActionsUiTest {
             }
         }
 
+        override fun replace_all_actions(actions: List<CustomAction>) {
+            state_flow.value = actions
+        }
+
         override fun delete_action(action_id: String) {
             state_flow.value = state_flow.value.filterNot { it.id == action_id }
         }

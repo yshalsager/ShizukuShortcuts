@@ -132,6 +132,10 @@ class ShortcutDispatchActivityTest {
 
         override fun update_action(action_id: String, label: String, shell_command: String) = Unit
 
+        override fun replace_all_actions(actions: List<CustomAction>) {
+            state_flow.value = actions
+        }
+
         override fun delete_action(action_id: String) = Unit
 
         override fun find_by_id(action_id: String) = state_flow.value.firstOrNull { it.id == action_id }

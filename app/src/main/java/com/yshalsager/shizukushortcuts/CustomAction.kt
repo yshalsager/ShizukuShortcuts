@@ -22,6 +22,7 @@ interface CustomActionsRepositoryContract {
     val actions: StateFlow<List<CustomAction>>
     fun add_action(label: String, shell_command: String): CustomAction
     fun update_action(action_id: String, label: String, shell_command: String)
+    fun replace_all_actions(actions: List<CustomAction>)
     fun delete_action(action_id: String)
     fun find_by_id(action_id: String): CustomAction?
 }
@@ -60,6 +61,10 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
                 else action.copy(label = label.trim(), shell_command = shell_command.trim())
             }
         )
+    }
+
+    override fun replace_all_actions(actions: List<CustomAction>) {
+        save_actions(actions)
     }
 
     override fun delete_action(action_id: String) {

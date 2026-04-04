@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,6 +69,31 @@ class MainActivity : ComponentActivity() {
     private val manager by lazy { AppServices.shizuku_manager(this) }
     private val custom_actions_repository by lazy { AppServices.custom_actions_repository(this) }
     private var inbound_message by mutableStateOf("")
+    private var pending_restore_actions by mutableStateOf<List<CustomAction>?>(null)
+    private val create_backup_document = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri == null) return@registerForActivityResult
+
+        val was_saved = write_custom_actions_backup(contentResolver, uri, custom_actions_repository.actions.value)
+
+        Toast.makeText(
+            this,
+            getString(if (was_saved) R.string.custom_actions_backup_success else R.string.custom_actions_backup_failed),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+    private val open_restore_document = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+
+        val imported_actions = runCatching { read_custom_actions_backup(contentResolver, uri) }
+
+        imported_actions
+            .onSuccess { actions ->
+                pending_restore_actions = actions
+            }
+            .onFailure {
+                Toast.makeText(this, getString(R.string.custom_actions_restore_failed), Toast.LENGTH_SHORT).show()
+            }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,7 +113,12 @@ class MainActivity : ComponentActivity() {
                 on_pin_shortcut = ::pin_shortcut,
                 on_add_custom_action = ::add_custom_action,
                 on_update_custom_action = custom_actions_repository::update_action,
-                on_delete_custom_action = custom_actions_repository::delete_action
+                on_delete_custom_action = custom_actions_repository::delete_action,
+                on_backup_custom_actions = ::backup_custom_actions,
+                on_restore_custom_actions = ::select_restore_backup,
+                pending_restore_count = pending_restore_actions?.size,
+                on_confirm_restore_custom_actions = ::confirm_restore_custom_actions,
+                on_dismiss_restore_custom_actions = { pending_restore_actions = null }
             )
         }
     }
@@ -136,6 +167,21 @@ class MainActivity : ComponentActivity() {
         custom_actions_repository.add_action(label, shell_command)
         return null
     }
+
+    private fun backup_custom_actions() {
+        create_backup_document.launch(custom_actions_backup_file_name())
+    }
+
+    private fun select_restore_backup() {
+        open_restore_document.launch(arrayOf("application/json"))
+    }
+
+    private fun confirm_restore_custom_actions() {
+        val actions = pending_restore_actions ?: return
+        custom_actions_repository.replace_all_actions(actions)
+        pending_restore_actions = null
+        Toast.makeText(this, getString(R.string.custom_actions_restore_success), Toast.LENGTH_SHORT).show()
+    }
 }
 
 @Composable
@@ -148,7 +194,12 @@ private fun MainScreen(
     on_pin_shortcut: (AppActionItem) -> Unit,
     on_add_custom_action: (String, String) -> Int?,
     on_update_custom_action: (String, String, String) -> Unit,
-    on_delete_custom_action: (String) -> Unit
+    on_delete_custom_action: (String) -> Unit,
+    on_backup_custom_actions: () -> Unit,
+    on_restore_custom_actions: () -> Unit,
+    pending_restore_count: Int?,
+    on_confirm_restore_custom_actions: () -> Unit,
+    on_dismiss_restore_custom_actions: () -> Unit
 ) {
     val colors = shizuku_shortcuts_colors()
     val is_ready = state.is_running && state.is_permission_granted
@@ -216,6 +267,26 @@ private fun MainScreen(
                 )
             }
 
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    InlineActionButton(
+                        colors = colors,
+                        label = stringResource(R.string.custom_actions_backup).uppercase(),
+                        enabled = true,
+                        on_click = on_backup_custom_actions
+                    )
+                    InlineActionButton(
+                        colors = colors,
+                        label = stringResource(R.string.custom_actions_restore).uppercase(),
+                        enabled = true,
+                        on_click = on_restore_custom_actions
+                    )
+                }
+            }
+
             if (custom_action_items.isEmpty()) {
                 item {
                     InlineInfoPanel(colors = colors, text = stringResource(R.string.custom_actions_empty))
@@ -258,6 +329,15 @@ private fun MainScreen(
                     }
                     error
                 }
+            )
+        }
+
+        if (pending_restore_count != null) {
+            RestoreCustomActionsDialog(
+                colors = colors,
+                actions_count = pending_restore_count,
+                on_confirm = on_confirm_restore_custom_actions,
+                on_dismiss = on_dismiss_restore_custom_actions
             )
         }
     }
@@ -598,6 +678,53 @@ private fun AddCustomActionDialog(
                     on_click = {
                         error_res = on_submit(label, shell_command)
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreCustomActionsDialog(
+    colors: AppColors,
+    actions_count: Int,
+    on_confirm: () -> Unit,
+    on_dismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = on_dismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.surface)
+                .border(1.dp, colors.border, RoundedCornerShape(24.dp))
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            BasicText(
+                text = stringResource(R.string.custom_actions_restore_confirm_title),
+                style = action_title_text_style(colors)
+            )
+
+            BasicText(
+                text = stringResource(R.string.custom_actions_restore_confirm_message, actions_count),
+                style = body_text_style(colors.text_muted)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
+            ) {
+                InlineActionButton(
+                    colors = colors,
+                    label = stringResource(R.string.cancel_action).uppercase(),
+                    enabled = true,
+                    on_click = on_dismiss
+                )
+                FilledActionButton(
+                    colors = colors,
+                    label = stringResource(R.string.custom_actions_restore_confirm_action),
+                    on_click = on_confirm
                 )
             }
         }
