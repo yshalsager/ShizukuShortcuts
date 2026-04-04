@@ -20,6 +20,14 @@ def screenshot_test_package
   'com.yshalsager.shizukushortcuts.screenshots'
 end
 
+def debug_app_package_name
+  'com.yshalsager.shizukushortcuts.debug'
+end
+
+def debug_tests_package_name
+  "#{debug_app_package_name}.test"
+end
+
 def adb_binary_path
   sdk_root = ENV['ANDROID_HOME'] || ENV['ANDROID_SDK_ROOT'] || ENV['ANDROID_SDK']
   if sdk_root.to_s.empty?
@@ -64,8 +72,8 @@ platform :android do
         app_apk_path: debug_app_apk_path,
         tests_apk_path: debug_tests_apk_path,
         use_tests_in_packages: screenshot_test_package,
-        app_package_name: 'com.yshalsager.shizukushortcuts',
-        tests_package_name: 'com.yshalsager.shizukushortcuts.test',
+        app_package_name: debug_app_package_name,
+        tests_package_name: debug_tests_package_name,
         use_timestamp_suffix: false,
         skip_open_summary: true,
         specific_device: device.serial,
