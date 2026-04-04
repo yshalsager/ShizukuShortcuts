@@ -6,14 +6,14 @@
 [![minSdk](https://img.shields.io/badge/minSdk-26-2ea44f)](https://developer.android.com/about/versions/android-8.0)
 [![Shizuku](https://img.shields.io/badge/powered%20by-Shizuku-4f46e5)](https://github.com/RikkaApps/Shizuku)
 
-Tiny launcher shortcuts and custom shell actions for Android through Shizuku.
+Tiny launcher shortcuts, home-screen widgets, and custom shell actions for Android through Shizuku.
 
 The app ships with two built-in actions:
 
 - open notifications
 - open Quick Settings
 
-It can run them directly from the compact home screen with `Try`, pin them as launcher shortcuts with `Pin`, and add local custom shell actions such as `cmd statusbar expand-notifications` without the `adb shell` prefix.
+It can run them directly from the compact home screen with `Try`, pin them as launcher shortcuts with `Pin`, place them as home-screen widgets, and add local custom shell actions such as `cmd statusbar expand-notifications` without the `adb shell` prefix.
 
 > [!CAUTION]
 > This project was developed with heavy use of AI assistance, including OpenAI Codex.
@@ -49,6 +49,8 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 - Lets you add local custom shell actions that run through the same Shizuku user-service path
 - Keeps built-in static launcher shortcuts and publishes custom dynamic shortcuts to the launcher long-press menu
 - Supports pinned launcher shortcuts for both built-ins and custom actions
+- Supports a unified home-screen widget: each widget instance can be configured to one built-in or custom action
+- Re-routes widget taps through `ShortcutDispatchActivity` and shows a rebind prompt if a linked custom action is removed
 - Shows Shizuku state and permission state as compact status chips
 - Lets you `Try`, `Edit`, `Pin`, or `Delete` custom actions from the home screen
 - Supports Android dynamic colors on Android 12+ with a fixed fallback palette on older versions
@@ -72,10 +74,11 @@ Core pieces:
 - `AppCustomActionsRepository`: local custom-action persistence in one SharedPreferences JSON payload
 - `ActionCatalog` and `DynamicShortcutSync`: merged lookup plus custom dynamic shortcut publishing
 - `ActionPerformer`: shell command execution and fallback logic
+- `ActionWidgetProvider`, `ActionWidgetConfigureActivity`, `ActionWidgetRenderer`, and `WidgetBindingsRepository`: widget lifecycle, selection UI, rendering, and per-widget action binding
 
 Runtime flow:
 
-1. User taps `Try` in the app or launches a static, dynamic, or pinned shortcut
+1. User taps `Try` in the app, launches a static/dynamic/pinned shortcut, or taps a configured widget
 2. The app checks Shizuku availability and permission
 3. The app binds the Shizuku user service
 4. The user service runs either the built-in argv command or `sh -c` for a custom shell action
