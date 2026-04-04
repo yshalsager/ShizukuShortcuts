@@ -1,0 +1,1 @@
+Release v0.4.0. Notes: https://github.com/yshalsager/ShizukuShortcuts/releases/tag/v0.4.0
