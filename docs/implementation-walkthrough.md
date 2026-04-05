@@ -1,10 +1,11 @@
 # Implementation Walkthrough
 
-This document walks through the app from build setup to the final privileged shell command.
+This document walks through the app from build setup to the final privileged shell command, including widgets and custom-action backup/restore.
 
 ## 1. Project setup
 
 The project is a single Android app module using Kotlin DSL, Compose, SDK 36, and a minified release build.
+Debug builds use an application id suffix (`.debug`) for clean separation from release and for screenshot/instrumentation runs.
 
 File: [app/build.gradle.kts](../app/build.gradle.kts)
 
@@ -29,6 +30,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -52,11 +58,13 @@ java = 'openjdk-25.0.2'
 
 ## 2. Manifest entrypoints
 
-The app has four important manifest entries:
+The app has six important manifest entries:
 
 - `ShizukuProvider` receives the Shizuku binder
 - `MainActivity` is the launcher/setup UI
 - `ShortcutDispatchActivity` is the transparent shortcut trampoline
+- `ActionWidgetConfigureActivity` is launched by widget placement/rebinding
+- `ActionWidgetProvider` is the app widget receiver
 - `localeConfig` exposes app languages to Android system settings
 
 File: [AndroidManifest.xml](../app/src/main/AndroidManifest.xml)
@@ -77,6 +85,28 @@ File: [AndroidManifest.xml](../app/src/main/AndroidManifest.xml)
     android:name=".ShortcutDispatchActivity"
     android:exported="true"
     android:theme="@style/Theme.ShizukuShortcuts.Transparent" />
+
+<activity
+    android:name=".ActionWidgetConfigureActivity"
+    android:exported="true">
+
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+    </intent-filter>
+</activity>
+
+<receiver
+    android:name=".ActionWidgetProvider"
+    android:exported="false">
+
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+    </intent-filter>
+
+    <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/action_widget_info" />
+</receiver>
 
 <activity
     android:name=".MainActivity"
@@ -135,6 +165,24 @@ val expand_quick_settings = ShortcutAction(
     icon_res = R.drawable.ic_shortcut_quick_settings,
     primary_command = listOf("cmd", "statusbar", "expand-settings")
 )
+
+val take_screenshot = ShortcutAction(
+    id = "take_screenshot",
+    shortcut_intent_action = "com.yshalsager.shizukushortcuts.action.TAKE_SCREENSHOT",
+    short_label_res = R.string.take_screenshot,
+    long_label_res = R.string.take_screenshot_long,
+    icon_res = R.drawable.ic_shortcut_screenshot,
+    primary_command = listOf("input", "keyevent", "120")
+)
+
+val screen_off = ShortcutAction(
+    id = "screen_off",
+    shortcut_intent_action = "com.yshalsager.shizukushortcuts.action.SCREEN_OFF",
+    short_label_res = R.string.screen_off,
+    long_label_res = R.string.screen_off_long,
+    icon_res = R.drawable.ic_shortcut_screen_off,
+    primary_command = listOf("input", "keyevent", "26")
+)
 ```
 
 Custom actions are stored separately as local data:
@@ -153,15 +201,26 @@ data class CustomAction(
 )
 ```
 
-They are persisted in one SharedPreferences JSON string and refreshed into launcher dynamic shortcuts whenever the list changes:
+They are persisted in one SharedPreferences JSON string and refreshed into launcher dynamic shortcuts and widgets whenever the list changes:
 
 ```kotlin
-private fun save_actions(actions: List<CustomAction>) {
+private fun save_actions(actions: List<CustomAction>, deleted_action_id: String? = null) {
     shared_preferences.edit().putString(actions_key, serialize_custom_actions(actions)).apply()
     state_flow.value = actions
-    DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
+    schedule_shortcut_sync(actions, deleted_action_id)
 }
 ```
+
+Restore support is replace-all and reuses the same persistence path via `replace_all_actions(...)` so shortcut and widget refresh behavior stays identical.
+
+File: [CustomActionsBackup.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/CustomActionsBackup.kt)
+
+Backup/restore helpers are separated from `MainActivity`:
+
+- versioned JSON payload (`version = 1`)
+- strict parse validation (version, structure, non-empty fields, duplicate IDs)
+- SAF read/write helpers
+- timestamped default names, e.g. `shizuku-custom-actions-backup-20260404-153045.json`
 
 The merged lookup layer is `ActionCatalog`, which turns built-ins and customs into one UI and dispatch model.
 
@@ -179,7 +238,7 @@ The same catalog builds the dispatch intent used by dynamic and pinned shortcuts
 
 ## 4. Static, dynamic, and pinned shortcuts
 
-The built-in launcher long-press shortcuts are declared in XML.
+The built-in launcher long-press shortcuts are declared in XML (now four entries: notifications, quick settings, screenshot, and screen off).
 
 File: [shortcuts.xml](../app/src/main/res/xml/shortcuts.xml)
 
@@ -200,23 +259,20 @@ File: [shortcuts.xml](../app/src/main/res/xml/shortcuts.xml)
 Custom actions cannot use XML static shortcuts, so they are published as dynamic shortcuts at runtime.
 
 ```kotlin
-val dynamic_shortcuts = published_custom_actions(custom_actions, shortcut_manager.maxShortcutCountPerActivity)
-    .map { action ->
-        ShortcutInfo.Builder(context, action.id)
-            .setShortLabel(action.label)
-            .setLongLabel(action.label)
-            .setIcon(Icon.createWithResource(context, R.drawable.ic_shortcut_custom_action))
-            .setIntent(
-                Intent(context, ShortcutDispatchActivity::class.java)
-                    .putExtra(ShortcutActions.extra_action_id, action.id)
-            )
-            .build()
-    }
+val sync_plan = sync_plan(custom_actions, shortcut_manager.maxShortcutCountPerActivity)
+val shortcuts = sync_plan.all_custom_actions.map { build_custom_shortcut(context, it) }
 
-shortcut_manager.dynamicShortcuts = dynamic_shortcuts
+shortcut_manager.updateShortcuts(shortcuts)
+shortcut_manager.dynamicShortcuts = shortcuts.take(sync_plan.dynamic_shortcut_count)
 ```
 
 Pinned home-screen shortcuts for both built-ins and customs go through the same `ActionCatalog.build_pinned_shortcut()` path.
+
+Widgets are also action-based and use the same dispatch contract:
+
+- one widget instance binds to one `action_id` in `WidgetBindingsRepository`
+- widget tap sends an explicit `PendingIntent` to `ShortcutDispatchActivity` with `ShortcutActions.extra_action_id`
+- if a previously bound custom action is deleted, the widget shows a removed state and opens `ActionWidgetConfigureActivity` for rebinding
 
 ## 5. MainActivity: condensed home screen
 
@@ -227,8 +283,10 @@ Pinned home-screen shortcuts for both built-ins and customs go through the same 
 - a button to request permission when needed
 - a built-in actions section
 - a custom actions section with `Add`
+- custom-action `Backup` and `Restore` entry actions
 - a `Try` text action and a `Pin` icon action for each row
 - `Edit` and `Delete` for custom rows
+- a restore confirmation dialog before destructive replace-all import
 
 File: [MainActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt)
 
@@ -245,9 +303,21 @@ setContent {
         on_pin_shortcut = ::pin_shortcut,
         on_add_custom_action = ::add_custom_action,
         on_update_custom_action = custom_actions_repository::update_action,
-        on_delete_custom_action = custom_actions_repository::delete_action
+        on_delete_custom_action = custom_actions_repository::delete_action,
+        on_backup_custom_actions = ::backup_custom_actions,
+        on_restore_custom_actions = ::select_restore_backup,
+        pending_restore_count = pending_restore_actions?.size,
+        on_confirm_restore_custom_actions = ::confirm_restore_custom_actions,
+        on_dismiss_restore_custom_actions = { pending_restore_actions = null }
     )
 }
+```
+
+Backup/restore uses SAF contracts from the activity:
+
+```kotlin
+private val create_backup_document = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { ... }
+private val open_restore_document = registerForActivityResult(ActivityResultContracts.OpenDocument()) { ... }
 ```
 
 The screen uses `enableEdgeToEdge()` plus safe drawing insets so content actually respects system bars:
@@ -317,6 +387,8 @@ private fun try_action(action: AppActionItem) {
             ActionResult.STATUS_SUCCESS -> getString(when (action.id) {
                 ShortcutActions.expand_notifications.id -> R.string.try_notifications_success
                 ShortcutActions.expand_quick_settings.id -> R.string.try_quick_settings_success
+                ShortcutActions.take_screenshot.id -> R.string.try_screenshot_success
+                ShortcutActions.screen_off.id -> R.string.try_screen_off_success
                 else -> R.string.try_custom_action_success
             })
             ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
@@ -406,7 +478,7 @@ override fun request_permission() {
 
 ## 8. Shortcut dispatch
 
-When the user taps a launcher shortcut, `ShortcutDispatchActivity` starts first.
+When the user taps a launcher shortcut or widget action, `ShortcutDispatchActivity` starts first.
 It stays a lightweight trampoline and finishes normally so it does not tear down an existing app task.
 
 File: [ShortcutDispatchActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivity.kt)
@@ -605,17 +677,22 @@ In practice this means:
 - notifications tries `cmd statusbar expand-notifications`
 - notifications falls back to `service call statusbar 1`
 - quick settings tries `cmd statusbar expand-settings`
+- screenshot triggers `input keyevent 120`
+- screen off triggers `input keyevent 26`
 - custom actions run exactly what the user entered through `sh -c`
 - custom action results keep only a bounded slice of command output for Binder safety
 
 ## 13. Tests
 
-There are four test surfaces:
+There are five test surfaces:
 
 - built-in fallback behavior plus custom-command execution in [ActionPerformerTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/ActionPerformerTest.kt) and [CustomActionTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/CustomActionTest.kt)
 - Shizuku service contract in [PrivilegedStatusBarServiceTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/PrivilegedStatusBarServiceTest.kt)
 - XML/registry consistency in [ShortcutXmlSyncTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/ShortcutXmlSyncTest.kt)
+- widget-binding serialization and CRUD in [WidgetBindingsRepositoryTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/WidgetBindingsRepositoryTest.kt)
 - instrumentation-side dispatch, catalog, and custom-action UI coverage in [ShortcutDispatchActivityTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivityTest.kt), [ActionCatalogTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ActionCatalogTest.kt), and [CustomActionsUiTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/CustomActionsUiTest.kt)
+
+`CustomActionTest.kt` also covers backup payload parsing/validation (malformed JSON, unsupported version, duplicate IDs) and timestamped backup file naming.
 
 Example fallback test:
 
@@ -643,7 +720,7 @@ assertTrue(IPrivilegedStatusBarService.Stub::class.java.isAssignableFrom(Privile
 
 The runtime path is:
 
-1. User opens the home screen or taps a static, dynamic, or pinned launcher shortcut
+1. User opens the home screen or taps a static, dynamic, or pinned launcher shortcut, or taps a configured widget
 2. Home screen `Try` buttons call `AppShizukuManager.perform_action()` directly
 3. Launcher shortcuts go through `ShortcutDispatchActivity`
 4. `ActionCatalog` resolves the requested built-in or custom action
