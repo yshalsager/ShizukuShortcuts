@@ -417,7 +417,7 @@ jobs:
 
       - name: Create GitHub release
         if: ${{ needs.version.outputs.publish_izzy == 'true' && (github.event_name == 'push' || (inputs.release && inputs.create_tag && !inputs.dry_run)) }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           name: ${{ needs.version.outputs.tag }}
