@@ -73,7 +73,7 @@ jobs:
       publish_izzy: ${{ steps.publish_target.outputs.publish_izzy }}
       checkout_ref: ${{ steps.checkout_ref.outputs.ref }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -247,7 +247,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true

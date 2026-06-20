@@ -16,7 +16,7 @@ jobs:
   test_and_build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: android-actions/setup-android@v4
         with:
@@ -41,7 +41,7 @@ jobs:
   validate_fastlane_metadata:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ashutoshgngwr/validate-fastlane-supply-metadata@v2
         with:
