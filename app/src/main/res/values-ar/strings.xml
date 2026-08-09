@@ -44,6 +44,11 @@
     <string name='pin_success'>تم إرسال طلب التثبيت إلى المشغّل</string>
     <string name='pin_not_supported'>المشغّل لا يدعم الاختصارات المثبتة</string>
     <string name='pin_failed'>تعذر إنشاء الاختصار</string>
+    <string name='pin_icon_title'>اختر أيقونة الاختصار</string>
+    <string name='pin_icon_default'>الأيقونة الافتراضية</string>
+    <string name='pin_icon_choose'>اختر أيقونة</string>
+    <string name='pin_icon_requirements'>يمكنك استخدام الأيقونة الافتراضية أو اختيار صورة مخصصة. يفضل استخدام صورة مربعة. الدقة الموصى بها: 512 × 512 بكسل أو أعلى.</string>
+    <string name='pin_icon_invalid'>تعذر استخدام الصورة المحددة</string>
     <string name='try_notifications_success'>تم فتح الإشعارات</string>
     <string name='try_quick_settings_success'>تم فتح الإعدادات السريعة</string>
     <string name='try_screenshot_success'>تم التقاط لقطة شاشة</string>

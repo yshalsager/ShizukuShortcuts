@@ -1,6 +1,8 @@
 package com.yshalsager.shizukushortcuts
 
+import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -55,11 +57,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.lifecycleScope
 import com.yshalsager.shizukushortcuts.ui.theme.AppColors
 import com.yshalsager.shizukushortcuts.ui.theme.shizuku_shortcuts_colors
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -70,6 +74,7 @@ class MainActivity : ComponentActivity() {
     private val custom_actions_repository by lazy { AppServices.custom_actions_repository(this) }
     private var inbound_message by mutableStateOf("")
     private var pending_restore_actions by mutableStateOf<List<CustomAction>?>(null)
+    private var pending_pin_action: AppActionItem? = null
     private val create_backup_document = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@registerForActivityResult
 
@@ -93,6 +98,28 @@ class MainActivity : ComponentActivity() {
             .onFailure {
                 Toast.makeText(this, getString(R.string.custom_actions_restore_failed), Toast.LENGTH_SHORT).show()
             }
+    }
+    private val open_shortcut_icon = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val action = pending_pin_action
+        pending_pin_action = null
+        if (action == null || uri == null) return@registerForActivityResult
+
+        val icon = runCatching {
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream)
+            }
+        }.getOrNull()
+
+        if (icon == null) {
+            Toast.makeText(this, getString(R.string.pin_icon_invalid), Toast.LENGTH_SHORT).show()
+            return@registerForActivityResult
+        }
+
+        request_pin_shortcut(
+            action = action,
+            icon = IconCompat.createWithBitmap(icon),
+            shortcut_id = "${action.id}.custom.${UUID.randomUUID()}"
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,7 +156,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun pin_shortcut(action: AppActionItem) {
-        val shortcut = ActionCatalog.build_pinned_shortcut(this, action)
+        val icon_requirements = getString(R.string.pin_icon_requirements)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.pin_icon_title)
+            .setMessage(icon_requirements)
+            .setNegativeButton(R.string.pin_icon_default) { _, _ ->
+                request_pin_shortcut(action)
+            }
+            .setPositiveButton(R.string.pin_icon_choose) { _, _ ->
+                pending_pin_action = action
+                open_shortcut_icon.launch("image/*")
+            }
+            .show()
+    }
+
+    private fun request_pin_shortcut(action: AppActionItem, icon: IconCompat? = null, shortcut_id: String = action.id) {
+        val shortcut = ActionCatalog.build_pinned_shortcut(this, action, icon, shortcut_id)
         val was_requested = ShortcutManagerCompat.requestPinShortcut(this, shortcut, null)
         val message_res = when {
             was_requested -> R.string.pin_success

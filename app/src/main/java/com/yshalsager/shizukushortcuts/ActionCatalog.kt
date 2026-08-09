@@ -66,12 +66,17 @@ object ActionCatalog {
             .putExtra(ShortcutActions.extra_action_id, action.id)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
 
-    fun build_pinned_shortcut(context: Context, action: AppActionItem) =
-        ShortcutInfoCompat.Builder(context, action.id)
+    fun build_pinned_shortcut(
+        context: Context,
+        action: AppActionItem,
+        icon: IconCompat? = null,
+        shortcut_id: String = action.id
+    ) =
+        ShortcutInfoCompat.Builder(context, shortcut_id)
             .setShortLabel(action.short_label)
             .setLongLabel(action.long_label)
             .setActivity(shortcut_activity(context))
-            .setIcon(IconCompat.createWithResource(context, action.icon_res))
+            .setIcon(icon ?: IconCompat.createWithResource(context, action.icon_res))
             .setIntent(build_dispatch_intent(context, action))
             .build()
 }

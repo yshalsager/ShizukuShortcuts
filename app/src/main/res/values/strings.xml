@@ -44,6 +44,11 @@
     <string name='pin_success'>Launcher pin request sent</string>
     <string name='pin_not_supported'>Pinned shortcuts are not supported by this launcher</string>
     <string name='pin_failed'>Could not create the shortcut</string>
+    <string name='pin_icon_title'>Choose shortcut icon</string>
+    <string name='pin_icon_default'>Default icon</string>
+    <string name='pin_icon_choose'>Choose icon</string>
+    <string name='pin_icon_requirements'>You can use the default icon or choose a custom image. Use a square image for best results. Recommended resolution: 512 x 512 px or higher.</string>
+    <string name='pin_icon_invalid'>Could not use the selected image</string>
     <string name='try_notifications_success'>Opened notifications</string>
     <string name='try_quick_settings_success'>Opened Quick Settings</string>
     <string name='try_screenshot_success'>Captured screenshot</string>
