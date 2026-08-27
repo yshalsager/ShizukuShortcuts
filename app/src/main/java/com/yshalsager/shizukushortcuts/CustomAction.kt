@@ -65,23 +65,19 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
     }
 
     override fun delete_action(action_id: String) {
-        save_actions(
-            actions = state_flow.value.filterNot { it.id == action_id },
-            deleted_action_id = action_id
-        )
+        save_actions(state_flow.value.filterNot { it.id == action_id })
     }
 
     override fun find_by_id(action_id: String) = state_flow.value.firstOrNull { it.id == action_id }
 
-    private fun save_actions(actions: List<CustomAction>, deleted_action_id: String? = null) {
+    private fun save_actions(actions: List<CustomAction>) {
         shared_preferences.edit().putString(actions_key, serialize_custom_actions(actions)).apply()
         state_flow.value = actions
-        schedule_shortcut_sync(actions, deleted_action_id)
+        schedule_shortcut_sync(actions)
     }
 
-    private fun schedule_shortcut_sync(actions: List<CustomAction>, deleted_action_id: String? = null) =
+    private fun schedule_shortcut_sync(actions: List<CustomAction>) =
         shortcut_sync_scope.launch {
-            deleted_action_id?.let { DynamicShortcutSync.delete_custom_shortcut(app_context, it) }
             DynamicShortcutSync.refresh_sensitive_shortcuts(app_context)
             DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
             ActionWidgetProvider.refresh_widgets(app_context)

@@ -62,6 +62,7 @@ object ShortcutActions {
     )
 
     val all = listOf(expand_notifications, expand_quick_settings, take_screenshot, screen_off)
+    val ids = all.mapTo(mutableSetOf()) { it.id }
     val public_shortcut_ids = setOf(expand_notifications.id, expand_quick_settings.id)
 
     fun find_by_id(action_id: String?) = all.firstOrNull { it.id == action_id }

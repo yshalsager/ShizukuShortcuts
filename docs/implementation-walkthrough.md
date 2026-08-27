@@ -217,14 +217,14 @@ data class CustomAction(
 They are persisted in one SharedPreferences JSON string and refreshed into launcher dynamic shortcuts and widgets whenever the list changes:
 
 ```kotlin
-private fun save_actions(actions: List<CustomAction>, deleted_action_id: String? = null) {
+private fun save_actions(actions: List<CustomAction>) {
     shared_preferences.edit().putString(actions_key, serialize_custom_actions(actions)).apply()
     state_flow.value = actions
-    schedule_shortcut_sync(actions, deleted_action_id)
+    schedule_shortcut_sync(actions)
 }
 ```
 
-Restore support is replace-all and reuses the same persistence path via `replace_all_actions(...)` so shortcut and widget refresh behavior stays identical. Backups contain no dispatch token; imported actions are republished with the receiving device's local token.
+Restore support is replace-all and reuses the same persistence path via `replace_all_actions(...)` so shortcut and widget refresh behavior stays identical. Synchronization disables pinned IDs removed from the list, updates restored intents and labels, and re-enables restored IDs only after that update succeeds. Backups contain no dispatch token; imported actions are republished with the receiving device's local token.
 
 File: [CustomActionsBackup.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/CustomActionsBackup.kt)
 

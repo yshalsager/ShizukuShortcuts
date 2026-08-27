@@ -98,19 +98,21 @@ object DynamicShortcutSync {
         val dynamic_shortcut_count: Int
     )
 
-    fun delete_custom_shortcut(context: Context, action_id: String) {
-        val shortcut_manager = context.getSystemService(ShortcutManager::class.java) ?: return
-        shortcut_manager.disableShortcuts(listOf(action_id))
-        shortcut_manager.removeDynamicShortcuts(listOf(action_id))
-    }
-
     fun refresh_custom_shortcuts(context: Context, custom_actions: List<CustomAction>) {
         val shortcut_manager = context.getSystemService(ShortcutManager::class.java) ?: return
         val sync_plan = sync_plan(custom_actions, shortcut_manager.maxShortcutCountPerActivity)
         val shortcuts = sync_plan.all_custom_actions.map { build_custom_shortcut(context, it) }
+        val current_ids = shortcuts.mapTo(mutableSetOf(), ShortcutInfo::getId)
+        val pinned_custom_ids = custom_ids(shortcut_manager.pinnedShortcuts)
+        val stale_dynamic_ids = custom_ids(shortcut_manager.dynamicShortcuts) - current_ids
+        val removed_ids = pinned_custom_ids - current_ids
+        val restored_ids = pinned_custom_ids intersect current_ids
 
-        shortcut_manager.updateShortcuts(shortcuts)
-        shortcut_manager.dynamicShortcuts = shortcuts.take(sync_plan.dynamic_shortcut_count)
+        if (stale_dynamic_ids.isNotEmpty()) shortcut_manager.removeDynamicShortcuts(stale_dynamic_ids.toList())
+        if (removed_ids.isNotEmpty()) shortcut_manager.disableShortcuts(removed_ids.toList())
+        if (!shortcut_manager.setDynamicShortcuts(shortcuts.take(sync_plan.dynamic_shortcut_count))) return
+        val updated = shortcuts.isEmpty() || shortcut_manager.updateShortcuts(shortcuts)
+        if (updated && restored_ids.isNotEmpty()) shortcut_manager.enableShortcuts(restored_ids.toList())
     }
 
     fun refresh_sensitive_shortcuts(context: Context) {
@@ -118,7 +120,7 @@ object DynamicShortcutSync {
         val sensitive_ids = shortcut_manager.pinnedShortcuts
             .map(ShortcutInfo::getId)
             .filter { id ->
-                id !in ShortcutActions.public_shortcut_ids && ShortcutActions.all.any { it.id == id }
+                id !in ShortcutActions.public_shortcut_ids && id in ShortcutActions.ids
             }
         if (sensitive_ids.isEmpty()) return
         val updated = ShortcutManagerCompat.updateShortcuts(
@@ -142,6 +144,9 @@ object DynamicShortcutSync {
             dynamic_shortcut_count = (max_shortcut_count - ShortcutActions.public_shortcut_ids.size).coerceAtLeast(0)
         )
     }
+
+    private fun custom_ids(shortcuts: List<ShortcutInfo>) =
+        shortcuts.mapTo(mutableSetOf(), ShortcutInfo::getId).apply { removeAll(ShortcutActions.ids) }
 
     private fun build_custom_shortcut(context: Context, action: CustomAction): ShortcutInfo {
         val app_action = AppActionItem(
