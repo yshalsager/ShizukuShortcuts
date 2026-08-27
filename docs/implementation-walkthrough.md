@@ -381,7 +381,7 @@ fun validate_custom_action(label: String, shell_command: String): Int? {
 }
 ```
 
-Each action row now has direct execution and pinning, and custom rows also expose edit/delete:
+Each action row now has direct execution and pinning, and custom rows also expose edit/delete. Interactive controls use 48 dp targets; custom management controls move to their own row so labels remain readable. When Shizuku is unavailable, only `Try` is disabled—pin, edit, and delete remain fully visible and available:
 
 ```kotlin
 ActionRow(

@@ -21,10 +21,12 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -40,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -454,10 +455,11 @@ private fun SectionHeader(colors: AppColors, title: String, action_label: String
                 .background(colors.border.copy(alpha = 0.8f))
         )
         if (action_label != null && on_action != null) {
-            BasicText(
-                text = action_label,
-                modifier = Modifier.clickable(onClick = on_action),
-                style = action_button_text_style(colors.accent)
+            InlineActionButton(
+                colors = colors,
+                label = action_label,
+                enabled = true,
+                on_click = on_action
             )
         }
     }
@@ -471,10 +473,12 @@ private fun FilledActionButton(
 ) {
     Box(
         modifier = Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
             .background(colors.accent)
             .clickable(onClick = on_click)
-            .padding(horizontal = 14.dp, vertical = 9.dp)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center
     ) {
         BasicText(
             text = label,
@@ -548,72 +552,107 @@ private fun ActionRow(
     on_edit_action: ((AppActionItem) -> Unit)? = null,
     on_delete_action: ((String) -> Unit)?
 ) {
-    Row(
+    val has_management_actions = on_edit_action != null || on_delete_action != null
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (is_ready) 1f else 0.56f)
             .clip(RoundedCornerShape(22.dp))
-            .background(if (is_ready) colors.surface else colors.surface_alt)
+            .background(colors.surface)
             .border(1.dp, colors.border, RoundedCornerShape(22.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(if (is_ready) colors.accent_soft else colors.surface_raised),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Image(
-                painter = painterResource(action.icon_res),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                colorFilter = ColorFilter.tint(if (is_ready) colors.accent else colors.text_muted)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(colors.accent_soft),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(action.icon_res),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    colorFilter = ColorFilter.tint(colors.accent)
+                )
+            }
+
+            BasicText(
+                text = action.short_label,
+                modifier = Modifier.weight(1f),
+                style = action_title_text_style(colors),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            if (!has_management_actions) {
+                ActionControls(colors, action, is_ready, on_try_action, on_pin_shortcut, null, null)
+            }
         }
 
-        BasicText(
-            text = action.short_label,
-            modifier = Modifier.weight(1f),
-            style = action_title_text_style(colors),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            InlineActionButton(
+        if (has_management_actions) {
+            ActionControls(
                 colors = colors,
-                label = stringResource(R.string.try_action).uppercase(),
-                enabled = is_ready,
-                on_click = { on_try_action(action) }
+                action = action,
+                is_ready = is_ready,
+                on_try_action = on_try_action,
+                on_pin_shortcut = on_pin_shortcut,
+                on_edit_action = on_edit_action,
+                on_delete_action = on_delete_action,
+                modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
+
+@Composable
+private fun ActionControls(
+    colors: AppColors,
+    action: AppActionItem,
+    is_ready: Boolean,
+    on_try_action: (AppActionItem) -> Unit,
+    on_pin_shortcut: (AppActionItem) -> Unit,
+    on_edit_action: ((AppActionItem) -> Unit)?,
+    on_delete_action: ((String) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End)
+    ) {
+        InlineActionButton(
+            colors = colors,
+            label = stringResource(R.string.try_action).uppercase(),
+            enabled = is_ready,
+            on_click = { on_try_action(action) }
+        )
+        IconActionButton(
+            colors = colors,
+            icon_res = R.drawable.ic_pin,
+            content_description = stringResource(R.string.pin_action),
+            on_click = { on_pin_shortcut(action) }
+        )
+        if (on_edit_action != null) {
             IconActionButton(
                 colors = colors,
-                icon_res = R.drawable.ic_pin,
-                content_description = stringResource(R.string.pin_action),
-                on_click = { on_pin_shortcut(action) }
+                icon_res = R.drawable.ic_edit,
+                content_description = stringResource(R.string.edit_action),
+                on_click = { on_edit_action(action) }
             )
-            if (on_edit_action != null) {
-                IconActionButton(
-                    colors = colors,
-                    icon_res = R.drawable.ic_edit,
-                    content_description = stringResource(R.string.edit_action),
-                    on_click = { on_edit_action(action) }
-                )
-            }
-            if (on_delete_action != null) {
-                IconActionButton(
-                    colors = colors,
-                    icon_res = R.drawable.ic_delete,
-                    content_description = stringResource(R.string.delete_action),
-                    on_click = { on_delete_action(action.id) }
-                )
-            }
+        }
+        if (on_delete_action != null) {
+            IconActionButton(
+                colors = colors,
+                icon_res = R.drawable.ic_delete,
+                content_description = stringResource(R.string.delete_action),
+                on_click = { on_delete_action(action.id) }
+            )
         }
     }
 }
@@ -763,6 +802,7 @@ private fun LabeledField(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(colors.surface_alt)
                         .border(1.dp, colors.border, RoundedCornerShape(16.dp))
@@ -790,9 +830,11 @@ private fun InlineActionButton(
 ) {
     Box(
         modifier = Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
             .clickable(enabled = enabled, onClick = on_click)
-            .padding(horizontal = 6.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
         BasicText(text = label, style = action_button_text_style(if (enabled) colors.accent else colors.text_muted))
     }
@@ -807,7 +849,7 @@ private fun IconActionButton(
 ) {
     Box(
         modifier = Modifier
-            .size(28.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(colors.surface_alt)
             .clickable(onClick = on_click),
@@ -816,7 +858,7 @@ private fun IconActionButton(
         Image(
             painter = painterResource(icon_res),
             contentDescription = content_description,
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(18.dp),
             colorFilter = ColorFilter.tint(colors.text_muted)
         )
     }
