@@ -11,8 +11,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 import kotlin.coroutines.resume
 
@@ -32,6 +34,7 @@ interface ShizukuManagerContract {
 class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
     companion object {
         private const val permission_request_code = 4001
+        private const val binder_readiness_timeout_ms = 1_250L
         private const val service_tag = "statusbar_shortcuts"
         private const val service_version = 2
     }
@@ -76,10 +79,10 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
     }
 
     override suspend fun perform_action(action: AppActionItem): ActionResult {
-        if (!Shizuku.pingBinder()) return ActionResult.shizuku_unavailable(action.id)
-        if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-            return ActionResult.permission_denied(action.id)
-        }
+        if (!await_binder()) return ActionResult.shizuku_unavailable(action.id)
+        val permission = runCatching { Shizuku.checkSelfPermission() }.getOrNull()
+            ?: return ActionResult.shizuku_unavailable(action.id)
+        if (permission != PackageManager.PERMISSION_GRANTED) return ActionResult.permission_denied(action.id)
 
         return suspendCancellableCoroutine { continuation ->
             var is_finished = false
@@ -139,17 +142,23 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
         }
     }
 
+    private suspend fun await_binder(): Boolean {
+        if (runCatching { Shizuku.pingBinder() }.getOrDefault(false)) return true
+        refresh_state()
+        return withTimeoutOrNull(binder_readiness_timeout_ms) { state.first { it.is_running } } != null
+    }
+
     private fun current_state(permission_granted_override: Boolean? = null): ShizukuState {
-        val is_running = Shizuku.pingBinder()
-        val is_permission_granted = permission_granted_override ?: (
-            is_running && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        )
-        val should_show_permission_rationale = is_running &&
-            !is_permission_granted &&
-            Shizuku.shouldShowRequestPermissionRationale()
+        val is_running = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+        if (!is_running) return ShizukuState()
+
+        val is_permission_granted = permission_granted_override
+            ?: runCatching { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }.getOrDefault(false)
+        val should_show_permission_rationale = !is_permission_granted &&
+            runCatching { Shizuku.shouldShowRequestPermissionRationale() }.getOrDefault(false)
 
         return ShizukuState(
-            is_running = is_running,
+            is_running = true,
             is_permission_granted = is_permission_granted,
             should_show_permission_rationale = should_show_permission_rationale
         )

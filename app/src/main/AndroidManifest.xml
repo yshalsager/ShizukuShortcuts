@@ -26,7 +26,8 @@
             android:exported='true'
             android:excludeFromRecents='true'
             android:noHistory='true'
-            android:theme='@style/Theme.ShizukuShortcuts.Transparent' />
+            android:taskAffinity=''
+            android:theme='@style/Theme.ShizukuShortcuts.Dispatch' />
 
         <activity
             android:name='.ActionWidgetConfigureActivity'

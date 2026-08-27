@@ -84,7 +84,10 @@ File: [AndroidManifest.xml](../app/src/main/AndroidManifest.xml)
 <activity
     android:name=".ShortcutDispatchActivity"
     android:exported="true"
-    android:theme="@style/Theme.ShizukuShortcuts.Transparent" />
+    android:excludeFromRecents="true"
+    android:noHistory="true"
+    android:taskAffinity=""
+    android:theme="@style/Theme.ShizukuShortcuts.Dispatch" />
 
 <activity
     android:name=".ActionWidgetConfigureActivity"
@@ -439,7 +442,7 @@ Arabic strings live in [values-ar/strings.xml](../app/src/main/res/values-ar/str
 
 `AppShizukuManager` wraps:
 
-- Shizuku binder availability
+- Shizuku binder availability, including a bounded cold-start readiness wait
 - permission requests
 - binding to the remote user service
 
@@ -479,7 +482,7 @@ override fun request_permission() {
 ## 8. Shortcut dispatch
 
 When the user taps a launcher shortcut or widget action, `ShortcutDispatchActivity` starts first.
-It stays a lightweight trampoline and finishes normally so it does not tear down an existing app task.
+It uses an isolated task and a dedicated translucent theme so the trampoline can disappear without foregrounding or removing the main app task.
 
 File: [ShortcutDispatchActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivity.kt)
 
@@ -489,7 +492,7 @@ It resolves the action and runs it through the manager:
 val action = ActionCatalog.find_by_intent(this, intent)
 if (action == null) {
     Toast.makeText(this, getString(R.string.dispatch_missing_action), Toast.LENGTH_SHORT).show()
-    finish()
+    finishAndRemoveTask()
     return
 }
 
@@ -498,16 +501,18 @@ lifecycleScope.launch {
 }
 ```
 
-If Shizuku is missing or permission is denied, the activity redirects back to setup:
+Dispatch never opens `MainActivity`. Failures show a short toast, while every result closes the isolated task:
 
 ```kotlin
-private fun open_setup(message: String) {
-    startActivity(
-        Intent(this, MainActivity::class.java)
-            .putExtra(MainActivity.extra_message, message)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-    )
-    finish()
+private fun handle_result(result: ActionResult) {
+    val message = when (result.status_code) {
+        ActionResult.STATUS_SUCCESS -> null
+        ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
+        ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
+        else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
+    }
+    message?.let { Toast.makeText(this, it, Toast.LENGTH_SHORT).show() }
+    finishAndRemoveTask()
 }
 ```
 
@@ -724,9 +729,9 @@ The runtime path is:
 2. Home screen `Try` buttons call `AppShizukuManager.perform_action()` directly
 3. Launcher shortcuts go through `ShortcutDispatchActivity`
 4. `ActionCatalog` resolves the requested built-in or custom action
-5. `AppShizukuManager` checks whether Shizuku is running and permission is granted
+5. `AppShizukuManager` briefly waits for a cold-start Binder, then checks permission
 6. The app binds `PrivilegedStatusBarService` through Shizuku
 7. The app calls either `perform_action(action_id)` or `perform_custom_action(action_id, shell_command)` over Binder
 8. `ActionPerformer` runs the built-in argv command or the custom `sh -c` command in the privileged user service process
 9. The result is returned to the app
-10. The UI either shows a small toast, finishes silently, or routes the user back to setup
+10. The UI either shows a small error toast or finishes silently; shortcut dispatch never opens setup

@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -38,54 +37,23 @@ class ShortcutDispatchActivityTest {
     }
 
     @Test
-    fun permission_denied_routes_to_setup() {
-        fake_manager.action_result = ActionResult.permission_denied(ShortcutActions.expand_notifications.id)
-        val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
-
-        ActivityScenario.launch<ShortcutDispatchActivity>(
-            ActionCatalog.build_dispatch_intent(context, ActionCatalog.built_in_actions(context).first { it.id == ShortcutActions.expand_notifications.id })
-        ).use {}
-
-        val launched_activity = instrumentation.waitForMonitorWithTimeout(monitor, 5_000)
-        assertNotNull(launched_activity)
-        launched_activity?.finish()
-        instrumentation.removeMonitor(monitor)
-    }
+    fun permission_denied_finishes_without_setup() = assert_dispatch_finishes_without_setup(
+        ActionResult.permission_denied(ShortcutActions.expand_notifications.id)
+    )
 
     @Test
-    fun shizuku_unavailable_routes_to_setup() {
-        fake_manager.action_result = ActionResult.shizuku_unavailable(ShortcutActions.expand_notifications.id)
-        val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
-
-        ActivityScenario.launch<ShortcutDispatchActivity>(
-            ActionCatalog.build_dispatch_intent(context, ActionCatalog.built_in_actions(context).first { it.id == ShortcutActions.expand_notifications.id })
-        ).use {}
-
-        val launched_activity = instrumentation.waitForMonitorWithTimeout(monitor, 5_000)
-        assertNotNull(launched_activity)
-        launched_activity?.finish()
-        instrumentation.removeMonitor(monitor)
-    }
+    fun shizuku_unavailable_finishes_without_setup() = assert_dispatch_finishes_without_setup(
+        ActionResult.shizuku_unavailable(ShortcutActions.expand_notifications.id)
+    )
 
     @Test
-    fun successful_dispatch_finishes_without_setup() {
-        fake_manager.action_result = ActionResult.success(
+    fun successful_dispatch_finishes_without_setup() = assert_dispatch_finishes_without_setup(
+        ActionResult.success(
             action_id = ShortcutActions.expand_notifications.id,
             executed_command = "cmd statusbar expand-notifications",
             used_fallback = false
         )
-        val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
-
-        ActivityScenario.launch<ShortcutDispatchActivity>(
-            ActionCatalog.build_dispatch_intent(context, ActionCatalog.built_in_actions(context).first { it.id == ShortcutActions.expand_notifications.id })
-        ).use { scenario ->
-            instrumentation.waitForIdleSync()
-            assertEquals(Lifecycle.State.DESTROYED, scenario.state)
-        }
-
-        assertNull(instrumentation.waitForMonitorWithTimeout(monitor, 1_000))
-        instrumentation.removeMonitor(monitor)
-    }
+    )
 
     @Test
     fun custom_dispatch_resolves_by_id() {
@@ -103,6 +71,21 @@ class ShortcutDispatchActivityTest {
             assertEquals("custom-id", fake_manager.last_action?.id)
             assertEquals(Lifecycle.State.DESTROYED, scenario.state)
         }
+    }
+
+    private fun assert_dispatch_finishes_without_setup(result: ActionResult) {
+        fake_manager.action_result = result
+        val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
+
+        ActivityScenario.launch<ShortcutDispatchActivity>(
+            ActionCatalog.build_dispatch_intent(context, ActionCatalog.built_in_actions(context).first { it.id == ShortcutActions.expand_notifications.id })
+        ).use { scenario ->
+            instrumentation.waitForIdleSync()
+            assertEquals(Lifecycle.State.DESTROYED, scenario.state)
+        }
+
+        assertNull(instrumentation.waitForMonitorWithTimeout(monitor, 1_000))
+        instrumentation.removeMonitor(monitor)
     }
 
     private class FakeShizukuManager : ShizukuManagerContract {

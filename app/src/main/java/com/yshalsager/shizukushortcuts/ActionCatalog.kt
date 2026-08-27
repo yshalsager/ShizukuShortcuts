@@ -64,7 +64,7 @@ object ActionCatalog {
         Intent(context, ShortcutDispatchActivity::class.java)
             .setAction(action.shortcut_intent_action ?: custom_shortcut_intent_action(action.id))
             .putExtra(ShortcutActions.extra_action_id, action.id)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     fun build_pinned_shortcut(context: Context, action: AppActionItem) =
         ShortcutInfoCompat.Builder(context, action.id)

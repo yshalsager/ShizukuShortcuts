@@ -1,6 +1,5 @@
 package com.yshalsager.shizukushortcuts
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -16,7 +15,7 @@ class ShortcutDispatchActivity : ComponentActivity() {
         val action = ActionCatalog.find_by_intent(this, intent)
         if (action == null) {
             Toast.makeText(this, getString(R.string.dispatch_missing_action), Toast.LENGTH_SHORT).show()
-            close_dispatch_task()
+            finishAndRemoveTask()
             return
         }
 
@@ -26,27 +25,13 @@ class ShortcutDispatchActivity : ComponentActivity() {
     }
 
     private fun handle_result(result: ActionResult) {
-        when (result.status_code) {
-            ActionResult.STATUS_SUCCESS -> close_dispatch_task()
-            ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> open_setup(getString(R.string.dispatch_need_shizuku))
-            ActionResult.STATUS_PERMISSION_DENIED -> open_setup(getString(R.string.dispatch_need_permission))
-            else -> {
-                Toast.makeText(this, result.message.ifBlank { getString(R.string.dispatch_failed) }, Toast.LENGTH_SHORT).show()
-                close_dispatch_task()
-            }
+        val message = when (result.status_code) {
+            ActionResult.STATUS_SUCCESS -> null
+            ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
+            ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
+            else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
         }
-    }
-
-    private fun open_setup(message: String) {
-        startActivity(
-            Intent(this, MainActivity::class.java)
-                .putExtra(MainActivity.extra_message, message)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        )
-        close_dispatch_task()
-    }
-
-    private fun close_dispatch_task() {
-        finish()
+        message?.let { Toast.makeText(this, it, Toast.LENGTH_SHORT).show() }
+        finishAndRemoveTask()
     }
 }

@@ -43,7 +43,7 @@ object ActionWidgetRenderer {
         val intent = Intent()
             .setClassName(app_context.packageName, ShortcutDispatchActivity::class.java.name)
             .putExtra(ShortcutActions.extra_action_id, action_id)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return PendingIntent.getActivity(
             app_context,
             app_widget_id,
