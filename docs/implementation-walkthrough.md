@@ -444,7 +444,7 @@ Arabic strings live in [values-ar/strings.xml](../app/src/main/res/values-ar/str
 
 - Shizuku binder availability, including a bounded cold-start readiness wait
 - permission requests
-- binding to the remote user service
+- binding to and calling the remote user service within a 7-second timeout
 
 File: [ShizukuManager.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShizukuManager.kt)
 
@@ -532,22 +532,18 @@ private val user_service_args = Shizuku.UserServiceArgs(
     .processNameSuffix("statusbar_shortcuts")
 ```
 
-The bind call:
+Binding and execution share a 7-second timeout and are serialized because Shizuku reuses one connection holder per service tag. An atomic completion guard ensures that connect, disconnect, timeout, and cancellation can only complete and unbind once:
 
 ```kotlin
-runCatching { Shizuku.bindUserService(user_service_args, connection) }
-    .onFailure { exception ->
-        finish(
-            ActionResult.execution_failed(
-                action_id = action.id,
-                executed_command = action.shell_command ?: action.id,
-                message = exception.message ?: "Could not bind user service"
-            )
-        )
-    }
+return withTimeoutOrNull(user_service_timeout_ms) {
+    action_mutex.withLock { bind_and_perform(action) }
+} ?: ActionResult.execution_timed_out(
+    action_id = action.id,
+    executed_command = action.shell_command ?: action.id
+)
 ```
 
-When connected, the app talks to the remote binder:
+Bind, remote call, and unbind are queued on one worker, so a stuck Binder transaction cannot start overlapping transactions. Timeout returns without waiting for that worker, and the completion guard discards any late result:
 
 ```kotlin
 override fun onServiceConnected(name: ComponentName, service: IBinder) {
@@ -617,51 +613,30 @@ This shape matters because an earlier `Service()` implementation failed at runti
 
 File: [ActionPerformer.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ActionPerformer.kt)
 
-It loops over the primary command and any fallbacks until one succeeds:
+It loops over the primary command and any fallbacks until one succeeds. Recoverable launch failures and nonzero exits continue to the next command; interruption, cancellation, and timeout stop immediately. Final diagnostics describe the last command actually attempted:
 
 ```kotlin
-fun perform_action(action_id: String, command_runner: CommandRunner = ProcessCommandRunner): ActionResult {
-    val action = ShortcutActions.find_by_id(action_id) ?: return ActionResult.unknown_action(action_id)
-    var last_error = ""
+var last_command = action.primary_command.joinToString(" ")
+var last_error = "Command failed"
+var used_fallback = false
 
-    action.all_commands.forEachIndexed { index, command ->
-        val run = runCatching { command_runner.run_command(command) }
-            .getOrElse { exception ->
-                return ActionResult.execution_failed(
-                    action_id = action.id,
-                    executed_command = command.joinToString(" "),
-                    message = exception.message ?: "Command failed",
-                    used_fallback = index > 0
-                )
-            }
-
-        if (run.timed_out) {
-            return ActionResult.execution_timed_out(
-                action_id = action.id,
-                executed_command = command.joinToString(" "),
-                used_fallback = index > 0
-            )
-        }
-
-        if (run.exit_code == 0) {
-            return ActionResult.success(
-                action_id = action.id,
-                executed_command = command.joinToString(" "),
-                used_fallback = index > 0,
-                message = run.output
-            )
-        }
-
-        last_error = run.output.ifBlank { "Exit code ${run.exit_code}" }
+for ((index, command) in action.all_commands.withIndex()) {
+    last_command = command.joinToString(" ")
+    used_fallback = index > 0
+    val run = try {
+        command_runner.run_command(command)
+    } catch (exception: Exception) {
+        if (exception is InterruptedException || exception is CancellationException) throw exception
+        last_error = exception.message ?: "Command failed"
+        continue
     }
 
-    return ActionResult.execution_failed(
-        action_id = action.id,
-        executed_command = action.primary_command.joinToString(" "),
-        message = last_error.ifBlank { "Command failed" },
-        used_fallback = action.fallback_commands.isNotEmpty()
-    )
+    if (run.timed_out) return ActionResult.execution_timed_out(action.id, last_command, used_fallback)
+    if (run.exit_code == 0) return ActionResult.success(action.id, last_command, used_fallback, run.output)
+    last_error = run.output.ifBlank { "Exit code ${run.exit_code}" }
 }
+
+return ActionResult.execution_failed(action.id, last_command, last_error, used_fallback)
 ```
 
 The actual execution uses Android's native `timeout` command with a 5-second deadline and a 250 ms TERM-to-KILL grace period. A background reader continuously drains stdout and stderr while retaining at most 64 KiB.

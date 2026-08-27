@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class ActionPerformerTest {
     @Test
@@ -22,6 +23,23 @@ class ActionPerformerTest {
         assertTrue(result.is_success)
         assertTrue(result.used_fallback)
         assertEquals(ShortcutActions.expand_notifications.all_commands, attempted_commands)
+    }
+
+    @Test
+    fun `launch failure falls back and reports the fallback`() {
+        val attempted_commands = mutableListOf<List<String>>()
+
+        val result = ActionPerformer.perform_action(ShortcutActions.expand_notifications.id) { command ->
+            attempted_commands += command
+            if (attempted_commands.size == 1) throw IOException("cmd missing")
+            CommandRun(exit_code = 1, output = "fallback failed")
+        }
+
+        assertEquals(ActionResult.STATUS_EXECUTION_FAILED, result.status_code)
+        assertEquals(ShortcutActions.expand_notifications.all_commands, attempted_commands)
+        assertEquals(ShortcutActions.expand_notifications.fallback_commands.single().joinToString(" "), result.executed_command)
+        assertEquals("fallback failed", result.message)
+        assertTrue(result.used_fallback)
     }
 
     @Test

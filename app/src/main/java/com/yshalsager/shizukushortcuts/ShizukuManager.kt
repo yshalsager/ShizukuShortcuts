@@ -14,8 +14,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 
 data class ShizukuState(
@@ -35,12 +38,15 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
     companion object {
         private const val permission_request_code = 4001
         private const val binder_readiness_timeout_ms = 1_250L
+        private const val user_service_timeout_ms = 7_000L
         private const val service_tag = "statusbar_shortcuts"
         private const val service_version = 2
     }
 
     private val state_flow = MutableStateFlow(ShizukuState())
-    private val worker_scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val action_mutex = Mutex()
+    // ponytail: one worker contains stuck Binder calls; use cancellable oneway calls if parallelism matters
+    private val worker_scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private val user_service_args = Shizuku.UserServiceArgs(
         ComponentName(app_context.packageName, PrivilegedStatusBarService::class.java.name)
     )
@@ -84,51 +90,59 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
             ?: return ActionResult.shizuku_unavailable(action.id)
         if (permission != PackageManager.PERMISSION_GRANTED) return ActionResult.permission_denied(action.id)
 
-        return suspendCancellableCoroutine { continuation ->
-            var is_finished = false
-            lateinit var connection: ServiceConnection
+        return withTimeoutOrNull(user_service_timeout_ms) {
+            action_mutex.withLock { bind_and_perform(action) }
+        } ?: ActionResult.execution_timed_out(
+            action_id = action.id,
+            executed_command = action.shell_command ?: action.id
+        )
+    }
 
-            fun finish(result: ActionResult) {
-                if (is_finished) return
-                is_finished = true
+    private suspend fun bind_and_perform(action: AppActionItem): ActionResult = suspendCancellableCoroutine { continuation ->
+        val completed = AtomicBoolean()
+        lateinit var connection: ServiceConnection
+
+        fun finish(result: ActionResult? = null) {
+            if (!completed.compareAndSet(false, true)) return
+            worker_scope.launch {
                 runCatching { Shizuku.unbindUserService(user_service_args, connection, false) }
-                if (continuation.isActive) continuation.resume(result)
             }
+            if (result != null && continuation.isActive) continuation.resume(result)
+        }
 
-            connection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                    worker_scope.launch {
-                        val remote = IPrivilegedStatusBarService.Stub.asInterface(service)
-                        val result = runCatching {
-                            action.shell_command?.let { remote.perform_custom_action(action.id, it) }
-                                ?: remote.perform_action(action.id)
-                        }
-                            .getOrElse { exception ->
-                                ActionResult.execution_failed(
-                                    action_id = action.id,
-                                    executed_command = action.shell_command ?: action.id,
-                                    message = exception.message ?: "Remote execution failed"
-                                )
-                            }
-                        finish(result)
+        connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName, service: IBinder) {
+                worker_scope.launch {
+                    if (completed.get()) return@launch
+                    val remote = IPrivilegedStatusBarService.Stub.asInterface(service)
+                    val result = runCatching {
+                        action.shell_command?.let { remote.perform_custom_action(action.id, it) }
+                            ?: remote.perform_action(action.id)
                     }
+                        .getOrElse { exception ->
+                            ActionResult.execution_failed(
+                                action_id = action.id,
+                                executed_command = action.shell_command ?: action.id,
+                                message = exception.message ?: "Remote execution failed"
+                            )
+                        }
+                    finish(result)
                 }
+            }
 
-                override fun onServiceDisconnected(name: ComponentName) {
-                    finish(
-                        ActionResult.execution_failed(
-                            action_id = action.id,
-                            executed_command = action.shell_command ?: action.id,
-                            message = "User service disconnected"
-                        )
+            override fun onServiceDisconnected(name: ComponentName) {
+                finish(
+                    ActionResult.execution_failed(
+                        action_id = action.id,
+                        executed_command = action.shell_command ?: action.id,
+                        message = "User service disconnected"
                     )
-                }
+                )
             }
+        }
 
-            continuation.invokeOnCancellation {
-                runCatching { Shizuku.unbindUserService(user_service_args, connection, false) }
-            }
-
+        worker_scope.launch {
+            if (completed.get()) return@launch
             runCatching { Shizuku.bindUserService(user_service_args, connection) }
                 .onFailure { exception ->
                     finish(
@@ -140,6 +154,7 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
                     )
                 }
         }
+        continuation.invokeOnCancellation { finish() }
     }
 
     private suspend fun await_binder(): Boolean {

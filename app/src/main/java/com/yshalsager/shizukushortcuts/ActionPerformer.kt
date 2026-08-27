@@ -1,5 +1,6 @@
 package com.yshalsager.shizukushortcuts
 
+import kotlinx.coroutines.CancellationException
 import java.io.ByteArrayOutputStream
 
 data class CommandRun(
@@ -61,46 +62,33 @@ object ActionPerformer {
 
     fun perform_action(action_id: String, command_runner: CommandRunner = ProcessCommandRunner): ActionResult {
         val action = ShortcutActions.find_by_id(action_id) ?: return ActionResult.unknown_action(action_id)
-        var last_error = ""
+        var last_command = action.primary_command.joinToString(" ")
+        var last_error = "Command failed"
+        var used_fallback = false
 
-        action.all_commands.forEachIndexed { index, command ->
-            val run = runCatching { command_runner.run_command(command) }
-                .getOrElse { exception ->
-                    if (exception is InterruptedException) throw exception
-                    return ActionResult.execution_failed(
-                        action_id = action.id,
-                        executed_command = command.joinToString(" "),
-                        message = exception.message ?: "Command failed",
-                        used_fallback = index > 0
-                    )
-                }
+        for ((index, command) in action.all_commands.withIndex()) {
+            last_command = command.joinToString(" ")
+            used_fallback = index > 0
+            val run = try {
+                command_runner.run_command(command)
+            } catch (exception: Exception) {
+                if (exception is InterruptedException || exception is CancellationException) throw exception
+                last_error = exception.message ?: "Command failed"
+                continue
+            }
 
             if (run.timed_out) {
-                return ActionResult.execution_timed_out(
-                    action_id = action.id,
-                    executed_command = command.joinToString(" "),
-                    used_fallback = index > 0
-                )
+                return ActionResult.execution_timed_out(action.id, last_command, used_fallback)
             }
 
             if (run.exit_code == 0) {
-                return ActionResult.success(
-                    action_id = action.id,
-                    executed_command = command.joinToString(" "),
-                    used_fallback = index > 0,
-                    message = run.output
-                )
+                return ActionResult.success(action.id, last_command, used_fallback, run.output)
             }
 
             last_error = run.output.ifBlank { "Exit code ${run.exit_code}" }
         }
 
-        return ActionResult.execution_failed(
-            action_id = action.id,
-            executed_command = action.primary_command.joinToString(" "),
-            message = last_error.ifBlank { "Command failed" },
-            used_fallback = action.fallback_commands.isNotEmpty()
-        )
+        return ActionResult.execution_failed(action.id, last_command, last_error, used_fallback)
     }
 
     fun perform_custom_action(action_id: String, shell_command: String, command_runner: CommandRunner = ProcessCommandRunner): ActionResult {

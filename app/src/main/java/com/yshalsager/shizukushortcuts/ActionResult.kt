@@ -33,7 +33,7 @@ data class ActionResult(
             ActionResult(STATUS_EXECUTION_FAILED, action_id, executed_command, message, used_fallback)
 
         fun execution_timed_out(action_id: String, executed_command: String, used_fallback: Boolean = false) =
-            ActionResult(STATUS_EXECUTION_TIMED_OUT, action_id, executed_command, "Command timed out", used_fallback)
+            ActionResult(STATUS_EXECUTION_TIMED_OUT, action_id, executed_command, "Action timed out", used_fallback)
 
         fun shizuku_unavailable(action_id: String) =
             ActionResult(STATUS_SHIZUKU_UNAVAILABLE, action_id, message = "Shizuku is not running")
