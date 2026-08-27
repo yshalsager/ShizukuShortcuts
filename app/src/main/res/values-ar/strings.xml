@@ -1,10 +1,10 @@
 <resources>
     <string name='app_name'>اختصارات شيزوكو</string>
     <string name='available_actions_title'>الإجراءات المتاحة</string>
-    <string name='status_running_short'>يعمل</string>
-    <string name='status_not_running_short'>متوقف</string>
-    <string name='status_permission_granted_short'>الإذن جاهز</string>
-    <string name='status_permission_missing_short'>الإذن مطلوب</string>
+    <string name='status_ready_title'>جاهز</string>
+    <string name='status_ready_detail'>يعمل Shizuku وتم منح الإذن.</string>
+    <string name='status_not_running_title'>Shizuku لا يعمل</string>
+    <string name='status_permission_required_title'>الإذن مطلوب</string>
     <string name='request_permission'>امنح إذن Shizuku</string>
     <string name='open_notifications'>فتح الإشعارات</string>
     <string name='open_notifications_long'>فتح لوحة الإشعارات</string>

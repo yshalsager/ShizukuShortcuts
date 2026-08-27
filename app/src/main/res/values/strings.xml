@@ -1,10 +1,10 @@
 <resources>
     <string name='app_name'>Shizuku Shortcuts</string>
     <string name='available_actions_title'>Available Actions</string>
-    <string name='status_running_short'>Running</string>
-    <string name='status_not_running_short'>Stopped</string>
-    <string name='status_permission_granted_short'>Permission OK</string>
-    <string name='status_permission_missing_short'>Permission needed</string>
+    <string name='status_ready_title'>Ready</string>
+    <string name='status_ready_detail'>Shizuku is running and permission is granted.</string>
+    <string name='status_not_running_title'>Shizuku is not running</string>
+    <string name='status_permission_required_title'>Permission required</string>
     <string name='request_permission'>Grant Shizuku permission</string>
     <string name='open_notifications'>Open notifications</string>
     <string name='open_notifications_long'>Open the notification shade</string>

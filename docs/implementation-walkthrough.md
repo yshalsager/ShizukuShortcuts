@@ -294,7 +294,7 @@ Widgets are also action-based and use the same dispatch contract:
 
 `MainActivity` is a compact Compose screen that shows:
 
-- two side-by-side status chips
+- one mutually exclusive readiness status: Shizuku stopped, permission required, or ready
 - inline guidance only when Shizuku is stopped or permission is missing
 - a button to request permission when needed
 - a built-in actions section
@@ -313,7 +313,6 @@ setContent {
     MainScreen(
         state = state,
         custom_actions = custom_actions,
-        inbound_message = inbound_message,
         on_request_permission = manager::request_permission,
         on_try_action = ::try_action,
         on_pin_shortcut = ::pin_shortcut,

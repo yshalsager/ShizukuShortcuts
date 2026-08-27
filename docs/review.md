@@ -29,7 +29,8 @@ The original findings are retained below for context. Completed work:
 Outstanding work:
 
 - [ ] Move shortcut execution to a lifecycle-independent internal service and route widgets directly to it.
-- [ ] Consolidate status presentation and add running/duplicate-action protection.
+- [x] Consolidate Shizuku and permission presentation into one mutually exclusive readiness status.
+- [ ] Add running/duplicate-action protection.
 - [x] Interactive controls use 48 dp targets; unavailable Shizuku state disables only `Try`, not shortcut management.
 - [ ] Add delete undo, restore pluralization/details, safer shell-command editing, and higher-contrast widgets.
 - [ ] Split the oversized activity and prefer standard Material components where they reduce code and accessibility debt.

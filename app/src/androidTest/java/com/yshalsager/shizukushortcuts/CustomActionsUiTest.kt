@@ -44,6 +44,15 @@ class CustomActionsUiTest {
     val rules: RuleChain = RuleChain.outerRule(app_services_rule).around(compose_rule)
 
     @Test
+    fun status_is_mutually_exclusive() {
+        fake_manager.set_not_ready()
+
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.status_not_running_title)).assertIsDisplayed()
+        compose_rule.onAllNodesWithText(compose_rule.activity.getString(R.string.status_permission_required_title)).assertCountEquals(0)
+        compose_rule.onAllNodesWithText(compose_rule.activity.getString(R.string.status_ready_title)).assertCountEquals(0)
+    }
+
+    @Test
     fun custom_action_management_stays_accessible_when_shizuku_is_unavailable() {
         fake_manager.set_not_ready()
         compose_rule.onNodeWithText("Custom command").assertIsDisplayed()
@@ -78,7 +87,7 @@ class CustomActionsUiTest {
             ActionResult.success(action.id, "mock", false)
 
         fun set_not_ready() {
-            state_flow.value = state_flow.value.copy(is_running = false, is_permission_granted = false)
+            state_flow.value = state_flow.value.copy(is_running = false)
         }
     }
 

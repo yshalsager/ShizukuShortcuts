@@ -1,6 +1,5 @@
 package com.yshalsager.shizukushortcuts
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -49,6 +48,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -66,13 +68,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        const val extra_message = "extra_message"
-    }
-
     private val manager by lazy { AppServices.shizuku_manager(this) }
     private val custom_actions_repository by lazy { AppServices.custom_actions_repository(this) }
-    private var inbound_message by mutableStateOf("")
     private var pending_restore_actions by mutableStateOf<List<CustomAction>?>(null)
     private val create_backup_document = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -98,7 +95,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        inbound_message = intent.getStringExtra(extra_message).orEmpty()
         manager.refresh_state()
 
         setContent {
@@ -107,7 +103,6 @@ class MainActivity : ComponentActivity() {
             MainScreen(
                 state = state,
                 custom_actions = custom_actions,
-                inbound_message = inbound_message,
                 on_request_permission = manager::request_permission,
                 on_try_action = ::try_action,
                 on_pin_shortcut = ::pin_shortcut,
@@ -121,11 +116,6 @@ class MainActivity : ComponentActivity() {
                 on_dismiss_restore_custom_actions = { pending_restore_actions = null }
             )
         }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        inbound_message = intent.getStringExtra(extra_message).orEmpty()
     }
 
     private fun pin_shortcut(action: AppActionItem) {
@@ -200,7 +190,6 @@ class MainActivity : ComponentActivity() {
 private fun MainScreen(
     state: ShizukuState,
     custom_actions: List<CustomAction>,
-    inbound_message: String,
     on_request_permission: () -> Unit,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
@@ -252,7 +241,7 @@ private fun MainScreen(
             }
 
             item {
-                StatusSection(colors = colors, state = state, inbound_message = inbound_message, on_request_permission = on_request_permission)
+                StatusSection(colors = colors, state = state, on_request_permission = on_request_permission)
             }
 
             item {
@@ -381,58 +370,53 @@ private fun InlineInfoPanel(colors: AppColors, text: String) {
 }
 
 @Composable
-private fun StatusSection(colors: AppColors, state: ShizukuState, inbound_message: String, on_request_permission: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun StatusSection(colors: AppColors, state: ShizukuState, on_request_permission: () -> Unit) {
+    val is_ready = state.is_running && state.is_permission_granted
+    val title = stringResource(
+        when {
+            !state.is_running -> R.string.status_not_running_title
+            !state.is_permission_granted -> R.string.status_permission_required_title
+            else -> R.string.status_ready_title
+        }
+    )
+    val detail = stringResource(
+        when {
+            !state.is_running -> R.string.dispatch_need_shizuku
+            !state.is_permission_granted -> R.string.dispatch_need_permission
+            else -> R.string.status_ready_detail
+        }
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (is_ready) colors.success_surface else colors.surface_alt)
+            .border(1.dp, if (is_ready) colors.success_border else colors.border, RoundedCornerShape(20.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.semantics(mergeDescendants = true) {
+                contentDescription = "$title. $detail"
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatusBanner(
-                colors = colors,
-                text = stringResource(if (state.is_running) R.string.status_running_short else R.string.status_not_running_short),
-                is_positive = state.is_running,
-                modifier = Modifier.weight(1f)
+            StatusGlyph(
+                background = if (is_ready) colors.success else colors.text_muted,
+                text = if (is_ready) "✓" else "!"
             )
-            StatusBanner(
-                colors = colors,
-                text = stringResource(
-                    if (state.is_permission_granted) R.string.status_permission_granted_short else R.string.status_permission_missing_short
-                ),
-                is_positive = state.is_permission_granted,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        if (inbound_message.isNotBlank()) {
-            InlineInfoPanel(colors = colors, text = inbound_message)
-        }
-
-        if (!state.is_running) {
-            InlineInfoPanel(colors = colors, text = stringResource(R.string.dispatch_need_shizuku))
-        }
-
-        if (state.is_running && !state.is_permission_granted) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.surface_alt)
-                    .border(1.dp, colors.border, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                BasicText(
-                    text = stringResource(R.string.dispatch_need_permission),
-                    modifier = Modifier.weight(1f),
-                    style = body_text_style(colors.text_muted)
-                )
-                FilledActionButton(
-                    colors = colors,
-                    label = stringResource(R.string.request_permission),
-                    on_click = on_request_permission
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                BasicText(text = title, style = action_title_text_style(colors))
+                BasicText(text = detail, style = body_text_style(colors.text_muted))
             }
+        }
+        if (state.is_running && !state.is_permission_granted) {
+            FilledActionButton(
+                colors = colors,
+                label = stringResource(R.string.request_permission),
+                on_click = on_request_permission
+            )
         }
     }
 }
@@ -494,39 +478,11 @@ private fun FilledActionButton(
 }
 
 @Composable
-private fun StatusBanner(
-    colors: AppColors,
-    text: String,
-    is_positive: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(if (is_positive) colors.success_surface else colors.surface_alt)
-            .border(1.dp, if (is_positive) colors.success_border else colors.border, CircleShape)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        StatusGlyph(
-            background = if (is_positive) colors.success else colors.text_muted,
-            text = if (is_positive) "✓" else "!"
-        )
-        BasicText(
-            text = text,
-            style = banner_text_style(if (is_positive) colors.success else colors.text),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
 private fun StatusGlyph(background: Color, text: String) {
     Box(
         modifier = Modifier
             .size(20.dp)
+            .clearAndSetSemantics { }
             .clip(CircleShape)
             .background(background),
         contentAlignment = Alignment.Center
@@ -870,15 +826,6 @@ private fun title_text_style(colors: AppColors) = TextStyle(
     fontSize = 22.sp,
     lineHeight = 25.sp,
     color = colors.text
-)
-
-private fun banner_text_style(color: Color) = TextStyle(
-    fontFamily = FontFamily.SansSerif,
-    fontWeight = FontWeight.ExtraBold,
-    fontSize = 13.sp,
-    lineHeight = 15.sp,
-    letterSpacing = 0.4.sp,
-    color = color
 )
 
 private fun eyebrow_text_style(colors: AppColors) = TextStyle(
