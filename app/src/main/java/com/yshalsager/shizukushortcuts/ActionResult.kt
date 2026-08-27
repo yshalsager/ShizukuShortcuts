@@ -21,6 +21,7 @@ data class ActionResult(
         const val STATUS_EXECUTION_FAILED = 2
         const val STATUS_SHIZUKU_UNAVAILABLE = 3
         const val STATUS_PERMISSION_DENIED = 4
+        const val STATUS_EXECUTION_TIMED_OUT = 5
 
         fun success(action_id: String, executed_command: String, used_fallback: Boolean, message: String = "") =
             ActionResult(STATUS_SUCCESS, action_id, executed_command, message, used_fallback)
@@ -30,6 +31,9 @@ data class ActionResult(
 
         fun execution_failed(action_id: String, executed_command: String, message: String, used_fallback: Boolean = false) =
             ActionResult(STATUS_EXECUTION_FAILED, action_id, executed_command, message, used_fallback)
+
+        fun execution_timed_out(action_id: String, executed_command: String, used_fallback: Boolean = false) =
+            ActionResult(STATUS_EXECUTION_TIMED_OUT, action_id, executed_command, "Command timed out", used_fallback)
 
         fun shizuku_unavailable(action_id: String) =
             ActionResult(STATUS_SHIZUKU_UNAVAILABLE, action_id, message = "Shizuku is not running")

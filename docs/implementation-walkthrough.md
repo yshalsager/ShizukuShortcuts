@@ -635,6 +635,14 @@ fun perform_action(action_id: String, command_runner: CommandRunner = ProcessCom
                 )
             }
 
+        if (run.timed_out) {
+            return ActionResult.execution_timed_out(
+                action_id = action.id,
+                executed_command = command.joinToString(" "),
+                used_fallback = index > 0
+            )
+        }
+
         if (run.exit_code == 0) {
             return ActionResult.success(
                 action_id = action.id,
@@ -656,15 +664,7 @@ fun perform_action(action_id: String, command_runner: CommandRunner = ProcessCom
 }
 ```
 
-The actual execution uses `ProcessBuilder`:
-
-```kotlin
-val process = ProcessBuilder(command)
-    .redirectErrorStream(true)
-    .start()
-val output = process.inputStream.bufferedReader().use { it.readText().trim() }
-val exit_code = process.waitFor()
-```
+The actual execution uses Android's native `timeout` command with a 5-second deadline and a 250 ms TERM-to-KILL grace period. A background reader continuously drains stdout and stderr while retaining at most 64 KiB.
 
 Custom actions use one direct shell command path:
 
@@ -675,7 +675,7 @@ fun perform_custom_action(action_id: String, shell_command: String, command_runn
 }
 ```
 
-The custom command output is capped before it is copied into `ActionResult.message` so large stdout or stderr does not break the Binder call back to the app.
+All process output is bounded to 64 KiB while reading. Custom command messages are capped again at 8 KiB before crossing Binder.
 
 In practice this means:
 
@@ -685,7 +685,8 @@ In practice this means:
 - screenshot triggers `input keyevent 120`
 - screen off triggers `input keyevent 26`
 - custom actions run exactly what the user entered through `sh -c`
-- custom action results keep only a bounded slice of command output for Binder safety
+- each command has a 5-second timeout and 64 KiB output limit
+- custom action results keep at most 8 KiB of that output for Binder safety
 
 ## 13. Tests
 

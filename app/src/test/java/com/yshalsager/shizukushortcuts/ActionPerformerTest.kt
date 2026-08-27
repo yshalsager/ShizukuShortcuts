@@ -70,4 +70,13 @@ class ActionPerformerTest {
         assertTrue(result.is_success)
         assertEquals(8_192, result.message.length)
     }
+
+    @Test
+    fun `process timeout has distinct result`() {
+        val result = ActionPerformer.perform_custom_action("custom-id", "sleep 60") {
+            CommandRun(exit_code = -1, output = "", timed_out = true)
+        }
+
+        assertEquals(ActionResult.STATUS_EXECUTION_TIMED_OUT, result.status_code)
+    }
 }

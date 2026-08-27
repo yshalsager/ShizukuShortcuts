@@ -1,8 +1,11 @@
 package com.yshalsager.shizukushortcuts
 
+import java.io.ByteArrayOutputStream
+
 data class CommandRun(
     val exit_code: Int,
-    val output: String
+    val output: String,
+    val timed_out: Boolean = false
 )
 
 fun interface CommandRunner {
@@ -10,17 +13,45 @@ fun interface CommandRunner {
 }
 
 object ProcessCommandRunner : CommandRunner {
+    private const val max_output_bytes = 64 * 1_024
+    // ponytail: timeout exits overlap command exits; restore an app timer if exact classification matters
+    private val timeout_exit_codes = setOf(124, 137, 143)
+
     override fun run_command(command: List<String>): CommandRun {
+        val process = ProcessBuilder(listOf("timeout", "-k", ".25", "5") + command)
+            .redirectErrorStream(true)
+            .start()
+        val output = ByteArrayOutputStream(max_output_bytes)
+        val output_reader = Thread {
+            process.inputStream.use { input ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val count = runCatching { input.read(buffer) }.getOrDefault(-1)
+                    if (count < 0) break
+                    val remaining = max_output_bytes - output.size()
+                    if (remaining > 0) output.write(buffer, 0, minOf(count, remaining))
+                }
+            }
+        }.apply {
+            isDaemon = true
+            start()
+        }
+
         try {
-            val process = ProcessBuilder(command)
-                .redirectErrorStream(true)
-                .start()
-            val output = process.inputStream.bufferedReader().use { it.readText().trim() }
             val exit_code = process.waitFor()
-            return CommandRun(exit_code, output)
+            if (output_reader.isAlive) process.inputStream.close()
+            output_reader.join()
+            return CommandRun(
+                exit_code,
+                output.toByteArray().toString(Charsets.UTF_8).trim(),
+                exit_code in timeout_exit_codes
+            )
         } catch (exception: InterruptedException) {
+            // ponytail: native timeout may take the remaining five seconds to clean up its child
             Thread.currentThread().interrupt()
             throw exception
+        } finally {
+            if (output_reader.isAlive) runCatching { process.inputStream.close() }
         }
     }
 }
@@ -35,6 +66,7 @@ object ActionPerformer {
         action.all_commands.forEachIndexed { index, command ->
             val run = runCatching { command_runner.run_command(command) }
                 .getOrElse { exception ->
+                    if (exception is InterruptedException) throw exception
                     return ActionResult.execution_failed(
                         action_id = action.id,
                         executed_command = command.joinToString(" "),
@@ -42,6 +74,14 @@ object ActionPerformer {
                         used_fallback = index > 0
                     )
                 }
+
+            if (run.timed_out) {
+                return ActionResult.execution_timed_out(
+                    action_id = action.id,
+                    executed_command = command.joinToString(" "),
+                    used_fallback = index > 0
+                )
+            }
 
             if (run.exit_code == 0) {
                 return ActionResult.success(
@@ -67,12 +107,20 @@ object ActionPerformer {
         val command = listOf("sh", "-c", shell_command)
         val run = runCatching { command_runner.run_command(command) }
             .getOrElse { exception ->
+                if (exception is InterruptedException) throw exception
                 return ActionResult.execution_failed(
                     action_id = action_id,
                     executed_command = command.joinToString(" "),
                     message = exception.message ?: "Command failed"
                 )
             }
+
+        if (run.timed_out) {
+            return ActionResult.execution_timed_out(
+                action_id = action_id,
+                executed_command = command.joinToString(" ")
+            )
+        }
 
         if (run.exit_code == 0) {
             return ActionResult.success(
