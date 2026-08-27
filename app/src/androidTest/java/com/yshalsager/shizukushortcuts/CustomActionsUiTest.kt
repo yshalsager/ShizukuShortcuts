@@ -76,8 +76,9 @@ class CustomActionsUiTest {
             }
         }
 
-        override fun replace_all_actions(actions: List<CustomAction>) {
+        override suspend fun replace_all_actions(actions: List<CustomAction>): Boolean {
             state_flow.value = actions
+            return true
         }
 
         override fun delete_action(action_id: String) {

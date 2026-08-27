@@ -59,7 +59,10 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.lifecycleScope
 import com.yshalsager.shizukushortcuts.ui.theme.AppColors
 import com.yshalsager.shizukushortcuts.ui.theme.shizuku_shortcuts_colors
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -72,27 +75,23 @@ class MainActivity : ComponentActivity() {
     private var pending_restore_actions by mutableStateOf<List<CustomAction>?>(null)
     private val create_backup_document = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@registerForActivityResult
-
-        val was_saved = write_custom_actions_backup(contentResolver, uri, custom_actions_repository.actions.value)
-
-        Toast.makeText(
-            this,
-            getString(if (was_saved) R.string.custom_actions_backup_success else R.string.custom_actions_backup_failed),
-            Toast.LENGTH_SHORT
-        ).show()
+        lifecycleScope.launch {
+            val was_saved = withContext(Dispatchers.IO) {
+                write_custom_actions_backup(contentResolver, uri, custom_actions_repository.actions.value)
+            }
+            show_toast(getString(if (was_saved) R.string.custom_actions_backup_success else R.string.custom_actions_backup_failed))
+        }
     }
     private val open_restore_document = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@registerForActivityResult
-
-        val imported_actions = runCatching { read_custom_actions_backup(contentResolver, uri) }
-
-        imported_actions
-            .onSuccess { actions ->
-                pending_restore_actions = actions
+        lifecycleScope.launch {
+            val imported_actions = withContext(Dispatchers.IO) {
+                runCatching { read_custom_actions_backup(contentResolver, uri) }
             }
-            .onFailure {
-                Toast.makeText(this, getString(R.string.custom_actions_restore_failed), Toast.LENGTH_SHORT).show()
-            }
+            imported_actions
+                .onSuccess { actions -> pending_restore_actions = actions }
+                .onFailure { show_toast(getString(R.string.custom_actions_restore_failed)) }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,7 +135,7 @@ class MainActivity : ComponentActivity() {
             !ShortcutManagerCompat.isRequestPinShortcutSupported(this) -> R.string.pin_not_supported
             else -> R.string.pin_failed
         }
-        Toast.makeText(this, getString(message_res), Toast.LENGTH_SHORT).show()
+        show_toast(getString(message_res))
     }
 
     private fun try_action(action: AppActionItem) {
@@ -156,9 +155,13 @@ class MainActivity : ComponentActivity() {
                 ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
                 else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
             }
-            Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+            show_toast(message)
             manager.refresh_state()
         }
+    }
+
+    private fun show_toast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun add_custom_action(label: String, shell_command: String): Int? {
@@ -178,9 +181,17 @@ class MainActivity : ComponentActivity() {
 
     private fun confirm_restore_custom_actions() {
         val actions = pending_restore_actions ?: return
-        custom_actions_repository.replace_all_actions(actions)
-        pending_restore_actions = null
-        Toast.makeText(this, getString(R.string.custom_actions_restore_success), Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            try {
+                val synchronized = custom_actions_repository.replace_all_actions(actions)
+                pending_restore_actions = null
+                show_toast(getString(if (synchronized) R.string.custom_actions_restore_success else R.string.custom_actions_restore_sync_failed))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                show_toast(getString(R.string.custom_actions_restore_failed))
+            }
+        }
     }
 }
 

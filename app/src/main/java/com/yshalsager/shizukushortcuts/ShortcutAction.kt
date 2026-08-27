@@ -58,7 +58,7 @@ object ShortcutActions {
         short_label_res = R.string.screen_off,
         long_label_res = R.string.screen_off_long,
         icon_res = R.drawable.ic_shortcut_screen_off,
-        primary_command = listOf("input", "keyevent", "26")
+        primary_command = listOf("input", "keyevent", "223")
     )
 
     val all = listOf(expand_notifications, expand_quick_settings, take_screenshot, screen_off)

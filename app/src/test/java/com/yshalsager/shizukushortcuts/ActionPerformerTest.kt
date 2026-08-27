@@ -67,7 +67,7 @@ class ActionPerformerTest {
 
         assertTrue(result.is_success)
         assertFalse(result.used_fallback)
-        assertEquals(listOf(ShortcutActions.screen_off.primary_command), attempted_commands)
+        assertEquals(listOf(listOf("input", "keyevent", "223")), attempted_commands)
     }
 
     @Test

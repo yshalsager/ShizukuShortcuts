@@ -86,7 +86,7 @@ class ActionCatalogTest {
 
         override fun update_action(action_id: String, label: String, shell_command: String) = Unit
 
-        override fun replace_all_actions(actions: List<CustomAction>) = Unit
+        override suspend fun replace_all_actions(actions: List<CustomAction>) = true
 
         override fun delete_action(action_id: String) = Unit
 

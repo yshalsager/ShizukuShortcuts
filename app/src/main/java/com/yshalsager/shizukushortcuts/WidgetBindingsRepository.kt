@@ -2,6 +2,7 @@ package com.yshalsager.shizukushortcuts
 
 import android.content.Context
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 class WidgetBindingsRepository(
@@ -13,7 +14,7 @@ class WidgetBindingsRepository(
     }
 
     private val shared_preferences = app_context.applicationContext.getSharedPreferences(prefs_name, Context.MODE_PRIVATE)
-    private var bindings = parse_widget_bindings(shared_preferences.getString(bindings_key, null))
+    private var bindings = shared_preferences.load_json(bindings_key, emptyMap(), ::parse_widget_bindings)
 
     fun set_binding(app_widget_id: Int, action_id: String) {
         bindings = bindings + (app_widget_id to action_id)
@@ -59,7 +60,9 @@ fun parse_widget_bindings(serialized_bindings: String?): Map<Int, String> {
 
     for (index in 0 until json_array.length()) {
         val json_object = json_array.getJSONObject(index)
-        bindings[json_object.getInt("app_widget_id")] = json_object.getString("action_id")
+        val app_widget_id = json_object.get("app_widget_id") as? Int ?: throw JSONException("Invalid widget id")
+        val action_id = json_object.get("action_id") as? String ?: throw JSONException("Invalid widget action")
+        bindings[app_widget_id] = action_id
     }
 
     return bindings

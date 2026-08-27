@@ -4,7 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.time.LocalDateTime
+import java.util.UUID
 
 class CustomActionTest {
     @Test
@@ -20,8 +22,8 @@ class CustomActionTest {
     @Test
     fun `custom actions backup roundtrip preserves ids`() {
         val actions = listOf(
-            CustomAction("id-1", "Open notifications", "cmd statusbar expand-notifications"),
-            CustomAction("id-2", "Show settings", "cmd statusbar expand-settings")
+            CustomAction("00000000-0000-0000-0000-000000000001", "Open notifications", "cmd statusbar expand-notifications"),
+            CustomAction("00000000-0000-0000-0000-000000000002", "Show settings", "cmd statusbar expand-settings")
         )
 
         val restored_actions = parse_custom_actions_backup(serialize_custom_actions_backup(actions))
@@ -35,8 +37,14 @@ class CustomActionTest {
     }
 
     @Test
-    fun `custom actions backup rejects unsupported version`() {
-        val invalid_backup = """{"version":2,"actions":[]}"""
+    fun `custom actions backup rejects unsupported or wrong typed version`() {
+        assertTrue(runCatching { parse_custom_actions_backup("""{"version":2,"actions":[]}""") }.isFailure)
+        assertTrue(runCatching { parse_custom_actions_backup("""{"version":"1","actions":[]}""") }.isFailure)
+    }
+
+    @Test
+    fun `custom actions backup rejects wrong typed fields`() {
+        val invalid_backup = """{"version":1,"actions":[{"id":1,"label":2,"shell_command":3}]}"""
 
         assertTrue(runCatching { parse_custom_actions_backup(invalid_backup) }.isFailure)
     }
@@ -45,8 +53,8 @@ class CustomActionTest {
     fun `custom actions backup rejects duplicate ids`() {
         val invalid_backup = """
             {"version":1,"actions":[
-                {"id":"dup","label":"One","shell_command":"one"},
-                {"id":"dup","label":"Two","shell_command":"two"}
+                {"id":"00000000-0000-0000-0000-000000000001","label":"One","shell_command":"one"},
+                {"id":"00000000-0000-0000-0000-000000000001","label":"Two","shell_command":"two"}
             ]}
         """.trimIndent()
 
@@ -58,6 +66,24 @@ class CustomActionTest {
         val invalid_backup = """{"version":1,"actions":[{"id":"take_screenshot","label":"Oops","shell_command":"echo"}]}"""
 
         assertTrue(runCatching { parse_custom_actions_backup(invalid_backup) }.isFailure)
+    }
+
+    @Test
+    fun `custom actions backup rejects invalid ids and limits`() {
+        fun rejects(actions: List<CustomAction>) = assertTrue(
+            runCatching { parse_custom_actions_backup(serialize_custom_actions_backup(actions)) }.isFailure
+        )
+
+        rejects(listOf(CustomAction("invalid", "Label", "echo")))
+        rejects(listOf(CustomAction(UUID.randomUUID().toString().uppercase(), "Label", "echo")))
+        rejects(listOf(CustomAction(UUID.randomUUID().toString(), "x".repeat(201), "echo")))
+        rejects(listOf(CustomAction(UUID.randomUUID().toString(), "Label", "x".repeat(8193))))
+        rejects(List(101) { CustomAction(UUID(0, it.toLong()).toString(), "Label", "echo") })
+    }
+
+    @Test
+    fun `custom actions backup input is bounded`() {
+        assertTrue(runCatching { ByteArrayInputStream(ByteArray(256 * 1024 + 1)).read_backup_text() }.isFailure)
     }
 
     @Test

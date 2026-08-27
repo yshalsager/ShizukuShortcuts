@@ -27,6 +27,7 @@
     <string name='custom_actions_backup_success'>تم حفظ النسخة الاحتياطية</string>
     <string name='custom_actions_backup_failed'>تعذر حفظ النسخة الاحتياطية</string>
     <string name='custom_actions_restore_success'>تمت استعادة الإجراءات المخصصة</string>
+    <string name='custom_actions_restore_sync_failed'>تمت استعادة الإجراءات؛ تعذر تحديث الاختصارات أو الأدوات</string>
     <string name='custom_actions_restore_failed'>تعذر استعادة ملف النسخة الاحتياطية</string>
     <string name='custom_actions_restore_confirm_title'>استبدال الإجراءات المخصصة؟</string>
     <string name='custom_actions_restore_confirm_message'>سيؤدي هذا إلى استبدال الإجراءات الحالية بـ %1$d إجراءً مستورداً.</string>

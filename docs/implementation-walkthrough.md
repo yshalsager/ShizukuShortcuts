@@ -194,7 +194,7 @@ val screen_off = ShortcutAction(
     short_label_res = R.string.screen_off,
     long_label_res = R.string.screen_off_long,
     icon_res = R.drawable.ic_shortcut_screen_off,
-    primary_command = listOf("input", "keyevent", "26")
+    primary_command = listOf("input", "keyevent", "223")
 )
 ```
 
@@ -224,6 +224,8 @@ private fun save_actions(actions: List<CustomAction>) {
 }
 ```
 
+Malformed custom-action and widget-binding preferences are moved to a `_corrupt` key and loaded as empty data instead of crashing app startup.
+
 Restore support is replace-all and reuses the same persistence path via `replace_all_actions(...)` so shortcut and widget refresh behavior stays identical. Synchronization disables pinned IDs removed from the list, updates restored intents and labels, and re-enables restored IDs only after that update succeeds. Backups contain no dispatch token; imported actions are republished with the receiving device's local token.
 
 File: [CustomActionsBackup.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/CustomActionsBackup.kt)
@@ -231,8 +233,9 @@ File: [CustomActionsBackup.kt](../app/src/main/java/com/yshalsager/shizukushortc
 Backup/restore helpers are separated from `MainActivity`:
 
 - versioned JSON payload (`version = 1`)
-- strict parse validation (version, structure, non-empty fields, duplicate IDs)
-- SAF read/write helpers
+- strict parse validation (version, structure, canonical UUIDs, reserved/duplicate IDs, and count/field limits)
+- SAF read/write on `Dispatchers.IO`, with input capped at 256 KiB
+- durable restore followed by awaited shortcut/widget reconciliation and an accurate full/partial outcome message
 - timestamped default names, e.g. `shizuku-custom-actions-backup-20260404-153045.json`
 
 The merged lookup layer is `ActionCatalog`, which turns built-ins and customs into one UI and dispatch model.
@@ -668,7 +671,7 @@ In practice this means:
 - notifications falls back to `service call statusbar 1`
 - quick settings tries `cmd statusbar expand-settings`
 - screenshot triggers `input keyevent 120`
-- screen off triggers `input keyevent 26`
+- screen off triggers `input keyevent 223` (`KEYCODE_SLEEP`) so an already-off screen stays off
 - custom actions run exactly what the user entered through `sh -c`
 - each command has a 5-second timeout and 64 KiB output limit
 - custom action results keep at most 8 KiB of that output for Binder safety

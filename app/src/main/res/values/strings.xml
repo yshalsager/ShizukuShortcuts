@@ -27,6 +27,7 @@
     <string name='custom_actions_backup_success'>Backup saved</string>
     <string name='custom_actions_backup_failed'>Could not save backup</string>
     <string name='custom_actions_restore_success'>Custom actions restored</string>
+    <string name='custom_actions_restore_sync_failed'>Actions restored; shortcuts or widgets could not be refreshed</string>
     <string name='custom_actions_restore_failed'>Could not restore backup file</string>
     <string name='custom_actions_restore_confirm_title'>Replace custom actions?</string>
     <string name='custom_actions_restore_confirm_message'>This will replace current custom actions with %1$d imported actions.</string>

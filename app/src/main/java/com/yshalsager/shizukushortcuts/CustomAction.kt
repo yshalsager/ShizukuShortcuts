@@ -1,14 +1,18 @@
 package com.yshalsager.shizukushortcuts
 
 import android.content.Context
+import android.content.SharedPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
 
@@ -22,7 +26,7 @@ interface CustomActionsRepositoryContract {
     val actions: StateFlow<List<CustomAction>>
     fun add_action(label: String, shell_command: String): CustomAction
     fun update_action(action_id: String, label: String, shell_command: String)
-    fun replace_all_actions(actions: List<CustomAction>)
+    suspend fun replace_all_actions(actions: List<CustomAction>): Boolean
     fun delete_action(action_id: String)
     fun find_by_id(action_id: String): CustomAction?
 }
@@ -35,7 +39,9 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
 
     private val app_context = app_context.applicationContext
     private val shared_preferences = this.app_context.getSharedPreferences(prefs_name, Context.MODE_PRIVATE)
-    private val state_flow = MutableStateFlow(parse_custom_actions(shared_preferences.getString(actions_key, null)))
+    private val state_flow = MutableStateFlow(
+        shared_preferences.load_json(actions_key, emptyList(), ::parse_custom_actions)
+    )
     private val shortcut_sync_scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
 
     override val actions: StateFlow<List<CustomAction>> = state_flow.asStateFlow()
@@ -60,8 +66,16 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
         )
     }
 
-    override fun replace_all_actions(actions: List<CustomAction>) {
-        save_actions(actions)
+    override suspend fun replace_all_actions(actions: List<CustomAction>) = withContext(Dispatchers.IO) {
+        check(shared_preferences.edit().putString(actions_key, serialize_custom_actions(actions)).commit())
+        state_flow.value = actions
+        try {
+            schedule_shortcut_sync(actions).await()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            false
+        }
     }
 
     override fun delete_action(action_id: String) {
@@ -77,11 +91,25 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
     }
 
     private fun schedule_shortcut_sync(actions: List<CustomAction>) =
-        shortcut_sync_scope.launch {
-            DynamicShortcutSync.refresh_sensitive_shortcuts(app_context)
-            DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
+        shortcut_sync_scope.async {
+            val sensitive_shortcuts_synchronized = DynamicShortcutSync.refresh_sensitive_shortcuts(app_context)
+            val custom_shortcuts_synchronized = DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
             ActionWidgetProvider.refresh_widgets(app_context)
+            sensitive_shortcuts_synchronized && custom_shortcuts_synchronized
         }
+}
+
+internal fun <T> SharedPreferences.load_json(key: String, fallback: T, parse: (String) -> T): T {
+    val value = all[key] ?: return fallback
+    if (value is String) {
+        try {
+            return parse(value)
+        } catch (_: JSONException) {
+            Unit
+        }
+    }
+    edit().putString("${key}_corrupt", value.toString()).remove(key).apply()
+    return fallback
 }
 
 fun validate_custom_action(label: String, shell_command: String): Int? {
@@ -119,9 +147,9 @@ fun parse_custom_actions(serialized_actions: String?): List<CustomAction> {
     return List(json_array.length()) { index ->
         val json_object = json_array.getJSONObject(index)
         CustomAction(
-            id = json_object.getString("id"),
-            label = json_object.getString("label"),
-            shell_command = json_object.getString("shell_command")
+            id = json_object.get("id") as? String ?: throw JSONException("Invalid action id"),
+            label = json_object.get("label") as? String ?: throw JSONException("Invalid action label"),
+            shell_command = json_object.get("shell_command") as? String ?: throw JSONException("Invalid action command")
         )
     }
 }
