@@ -58,13 +58,14 @@ java = 'openjdk-25.0.2'
 
 ## 2. Manifest entrypoints
 
-The app has six important manifest entries:
+The app has seven important manifest entries:
 
 - `ShizukuProvider` receives the Shizuku binder
 - `MainActivity` is the launcher/setup UI
 - `ShortcutDispatchActivity` is the transparent shortcut trampoline
 - `ActionWidgetConfigureActivity` is launched by widget placement/rebinding
 - `ActionWidgetProvider` is the app widget receiver
+- `ShortcutMigrationReceiver` refreshes tokenized shortcuts and widgets after app updates
 - `localeConfig` exposes app languages to Android system settings
 
 File: [AndroidManifest.xml](../app/src/main/AndroidManifest.xml)
@@ -97,6 +98,15 @@ File: [AndroidManifest.xml](../app/src/main/AndroidManifest.xml)
         <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
     </intent-filter>
 </activity>
+
+<receiver
+    android:name=".ShortcutMigrationReceiver"
+    android:exported="false">
+
+    <intent-filter>
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+    </intent-filter>
+</receiver>
 
 <receiver
     android:name=".ActionWidgetProvider"
@@ -214,7 +224,7 @@ private fun save_actions(actions: List<CustomAction>, deleted_action_id: String?
 }
 ```
 
-Restore support is replace-all and reuses the same persistence path via `replace_all_actions(...)` so shortcut and widget refresh behavior stays identical.
+Restore support is replace-all and reuses the same persistence path via `replace_all_actions(...)` so shortcut and widget refresh behavior stays identical. Backups contain no dispatch token; imported actions are republished with the receiving device's local token.
 
 File: [CustomActionsBackup.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/CustomActionsBackup.kt)
 
@@ -237,11 +247,11 @@ fun find_by_id(context: Context, action_id: String?): AppActionItem? {
 }
 ```
 
-The same catalog builds the dispatch intent used by dynamic and pinned shortcuts.
+The same catalog builds the dispatch intent used by dynamic and pinned shortcuts. Generated intents include a private per-install token; exported tokenless dispatch is limited to notifications and Quick Settings.
 
 ## 4. Static, dynamic, and pinned shortcuts
 
-The built-in launcher long-press shortcuts are declared in XML (now four entries: notifications, quick settings, screenshot, and screen off).
+The two public launcher long-press shortcuts—notifications and Quick Settings—are declared in XML. Screenshot, screen off, and custom actions remain available through in-app pinning and widgets.
 
 File: [shortcuts.xml](../app/src/main/res/xml/shortcuts.xml)
 
@@ -259,7 +269,7 @@ File: [shortcuts.xml](../app/src/main/res/xml/shortcuts.xml)
 </shortcut>
 ```
 
-Custom actions cannot use XML static shortcuts, so they are published as dynamic shortcuts at runtime.
+Custom actions cannot use XML static shortcuts, so the two remaining launcher slots are published dynamically at runtime.
 
 ```kotlin
 val sync_plan = sync_plan(custom_actions, shortcut_manager.maxShortcutCountPerActivity)
@@ -269,7 +279,7 @@ shortcut_manager.updateShortcuts(shortcuts)
 shortcut_manager.dynamicShortcuts = shortcuts.take(sync_plan.dynamic_shortcut_count)
 ```
 
-Pinned home-screen shortcuts for both built-ins and customs go through the same `ActionCatalog.build_pinned_shortcut()` path.
+Pinned home-screen shortcuts for both built-ins and customs go through the same `ActionCatalog.build_pinned_shortcut()` path. After an app update, `ShortcutMigrationReceiver` keeps the broadcast alive with `goAsync()` until the normal synchronization job republishes custom shortcuts and widgets, then updates and re-enables legacy pinned screenshot and screen-off shortcuts with the local token.
 
 Widgets are also action-based and use the same dispatch contract:
 
@@ -486,7 +496,7 @@ It uses an isolated task and a dedicated translucent theme so the trampoline can
 
 File: [ShortcutDispatchActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivity.kt)
 
-It resolves the action and runs it through the manager:
+It resolves public built-ins directly and requires the per-install token for sensitive built-ins and custom actions, then runs the action through the manager:
 
 ```kotlin
 val action = ActionCatalog.find_by_intent(this, intent)

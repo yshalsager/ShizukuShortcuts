@@ -40,6 +40,15 @@
         </activity>
 
         <receiver
+            android:name='.ShortcutMigrationReceiver'
+            android:exported='false'>
+
+            <intent-filter>
+                <action android:name='android.intent.action.MY_PACKAGE_REPLACED' />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name='.ActionWidgetProvider'
             android:exported='false'
             android:label='@string/widget_name'>

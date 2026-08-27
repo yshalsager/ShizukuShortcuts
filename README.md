@@ -91,7 +91,7 @@ Runtime flow:
 
 ## Calling From Other Apps
 
-Built-in actions can also be triggered by other apps such as Tasker because `ShortcutDispatchActivity` is exported.
+Notifications and Quick Settings can also be triggered by other apps such as Tasker because `ShortcutDispatchActivity` is exported. Sensitive and custom actions require a private token embedded in shortcuts and widgets created by the app.
 
 Use an explicit intent to:
 
@@ -132,7 +132,7 @@ Current built-in ids:
 Notes:
 
 - Shizuku still needs to be running and permission must already be granted
-- custom actions are internally callable by id too, but there is no public API yet to list or stabilize those ids for Tasker-style integrations
+- screenshot, screen-off, and custom actions are not exposed through the public intent API
 
 Implementation details live in [docs/implementation-walkthrough.md](/Users/yshalsager/tmp/research/shizuku-shortcuts/docs/implementation-walkthrough.md).
 

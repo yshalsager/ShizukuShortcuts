@@ -16,7 +16,7 @@ object ActionWidgetRenderer {
             remote_views.setTextViewText(R.id.widget_label, action.short_label)
             remote_views.setOnClickPendingIntent(
                 R.id.widget_root,
-                dispatch_pending_intent(app_context, app_widget_id, action.id)
+                dispatch_pending_intent(app_context, app_widget_id, action)
             )
         } else {
             remote_views.setImageViewResource(R.id.widget_icon, R.drawable.ic_shortcut_custom_action)
@@ -38,12 +38,9 @@ object ActionWidgetRenderer {
     private fun dispatch_pending_intent(
         app_context: android.content.Context,
         app_widget_id: Int,
-        action_id: String
+        action: AppActionItem
     ): PendingIntent {
-        val intent = Intent()
-            .setClassName(app_context.packageName, ShortcutDispatchActivity::class.java.name)
-            .putExtra(ShortcutActions.extra_action_id, action_id)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = ActionCatalog.build_dispatch_intent(app_context, action)
         return PendingIntent.getActivity(
             app_context,
             app_widget_id,

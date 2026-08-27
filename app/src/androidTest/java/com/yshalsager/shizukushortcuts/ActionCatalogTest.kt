@@ -1,11 +1,13 @@
 package com.yshalsager.shizukushortcuts
 
-import android.content.Context
 import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,8 +47,36 @@ class ActionCatalogTest {
         assertEquals("custom-id", shortcut.id)
         assertEquals("Custom command", shortcut.shortLabel.toString())
         assertEquals(ComponentName(context, MainActivity::class.java), shortcut.activity)
-        assertEquals("com.yshalsager.shizukushortcuts.action.CUSTOM.custom-id", shortcut.intent.action)
+        assertEquals("com.yshalsager.shizukushortcuts.action.CUSTOM", shortcut.intent.action)
         assertEquals("custom-id", shortcut.intent.getStringExtra(ShortcutActions.extra_action_id))
+        assertEquals(action, ActionCatalog.find_by_intent(context, shortcut.intent))
+    }
+
+    @Test
+    fun sensitive_pinned_shortcut_uses_local_token() {
+        val action = ActionCatalog.find_by_id(context, ShortcutActions.take_screenshot.id)!!
+        val shortcut = ActionCatalog.build_pinned_shortcut(context, action)
+
+        assertEquals(action, ActionCatalog.find_by_intent(context, shortcut.intent))
+    }
+
+    @Test
+    fun external_dispatch_is_limited_to_public_actions() {
+        val public_intent = Intent().setAction(ShortcutActions.expand_notifications.shortcut_intent_action)
+        val screenshot_intent = Intent().setAction(ShortcutActions.take_screenshot.shortcut_intent_action)
+        val wrong_token = Intent()
+            .setAction(ShortcutActions.take_screenshot.shortcut_intent_action)
+            .putExtra("dispatch_token", "wrong")
+        val mismatched_id = Intent()
+            .setAction(ShortcutActions.expand_notifications.shortcut_intent_action)
+            .putExtra(ShortcutActions.extra_action_id, ShortcutActions.take_screenshot.id)
+        val custom_intent = Intent().putExtra(ShortcutActions.extra_action_id, "custom-id")
+
+        assertEquals(ShortcutActions.expand_notifications.id, ActionCatalog.find_by_intent(context, public_intent)?.id)
+        assertNull(ActionCatalog.find_by_intent(context, screenshot_intent))
+        assertNull(ActionCatalog.find_by_intent(context, wrong_token))
+        assertNull(ActionCatalog.find_by_intent(context, mismatched_id))
+        assertNull(ActionCatalog.find_by_intent(context, custom_intent))
     }
 
     private class FakeCustomActionsRepository(actions: List<CustomAction>) : CustomActionsRepositoryContract {

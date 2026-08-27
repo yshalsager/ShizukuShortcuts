@@ -8,7 +8,9 @@ import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import androidx.annotation.DrawableRes
 import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import java.util.UUID
 
 data class AppActionItem(
     val id: String,
@@ -20,9 +22,9 @@ data class AppActionItem(
 )
 
 object ActionCatalog {
-    private const val custom_shortcut_intent_action_prefix = "com.yshalsager.shizukushortcuts.action.CUSTOM."
+    private const val custom_shortcut_intent_action = "com.yshalsager.shizukushortcuts.action.CUSTOM"
+    private const val dispatch_token_key = "dispatch_token"
     internal fun shortcut_activity(context: Context) = ComponentName(context, MainActivity::class.java)
-    private fun custom_shortcut_intent_action(action_id: String) = "${custom_shortcut_intent_action_prefix}${action_id}"
 
     fun built_in_actions(context: Context) = ShortcutActions.all.map { action ->
         AppActionItem(
@@ -53,18 +55,32 @@ object ActionCatalog {
     }
 
     fun find_by_intent(context: Context, intent: Intent?): AppActionItem? {
-        val requested_action_id = intent?.getStringExtra(ShortcutActions.extra_action_id)
-        if (requested_action_id != null) return find_by_id(context, requested_action_id)
-        val action = intent?.action
-        if (action != null && action.startsWith(custom_shortcut_intent_action_prefix)) return find_by_id(context, action.removePrefix(custom_shortcut_intent_action_prefix))
-        return built_in_actions(context).firstOrNull { it.shortcut_intent_action == action }
+        val intent_action = intent?.action
+        val action_id = intent?.getStringExtra(ShortcutActions.extra_action_id)
+            ?: built_in_actions(context).firstOrNull { it.shortcut_intent_action == intent_action }?.id
+        val action = find_by_id(context, action_id) ?: return null
+        return action.takeIf {
+            it.id in ShortcutActions.public_shortcut_ids ||
+                intent?.getStringExtra(dispatch_token_key) == dispatch_token(context)
+        }
     }
 
     fun build_dispatch_intent(context: Context, action: AppActionItem) =
         Intent(context, ShortcutDispatchActivity::class.java)
-            .setAction(action.shortcut_intent_action ?: custom_shortcut_intent_action(action.id))
+            .setAction(action.shortcut_intent_action ?: custom_shortcut_intent_action)
             .putExtra(ShortcutActions.extra_action_id, action.id)
+            .putExtra(dispatch_token_key, dispatch_token(context))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    private fun dispatch_token(context: Context): String {
+        val preferences = context.getSharedPreferences(dispatch_token_key, Context.MODE_PRIVATE)
+        return synchronized(this) {
+            preferences.getString(dispatch_token_key, null)
+                ?: UUID.randomUUID().toString().also {
+                    check(preferences.edit().putString(dispatch_token_key, it).commit())
+                }
+        }
+    }
 
     fun build_pinned_shortcut(context: Context, action: AppActionItem) =
         ShortcutInfoCompat.Builder(context, action.id)
@@ -97,6 +113,23 @@ object DynamicShortcutSync {
         shortcut_manager.dynamicShortcuts = shortcuts.take(sync_plan.dynamic_shortcut_count)
     }
 
+    fun refresh_sensitive_shortcuts(context: Context) {
+        val shortcut_manager = context.getSystemService(ShortcutManager::class.java) ?: return
+        val sensitive_ids = shortcut_manager.pinnedShortcuts
+            .map(ShortcutInfo::getId)
+            .filter { id ->
+                id !in ShortcutActions.public_shortcut_ids && ShortcutActions.all.any { it.id == id }
+            }
+        if (sensitive_ids.isEmpty()) return
+        val updated = ShortcutManagerCompat.updateShortcuts(
+            context,
+            ActionCatalog.built_in_actions(context)
+                .filter { it.id in sensitive_ids }
+                .map { ActionCatalog.build_pinned_shortcut(context, it) }
+        )
+        if (updated) shortcut_manager.enableShortcuts(sensitive_ids)
+    }
+
     fun published_custom_actions(custom_actions: List<CustomAction>, max_shortcut_count: Int): List<CustomAction> {
         val sync_plan = sync_plan(custom_actions, max_shortcut_count)
         return sync_plan.all_custom_actions.take(sync_plan.dynamic_shortcut_count)
@@ -106,7 +139,7 @@ object DynamicShortcutSync {
         val all_custom_actions = custom_actions.asReversed()
         return SyncPlan(
             all_custom_actions = all_custom_actions,
-            dynamic_shortcut_count = (max_shortcut_count - ShortcutActions.all.size).coerceAtLeast(0)
+            dynamic_shortcut_count = (max_shortcut_count - ShortcutActions.public_shortcut_ids.size).coerceAtLeast(0)
         )
     }
 

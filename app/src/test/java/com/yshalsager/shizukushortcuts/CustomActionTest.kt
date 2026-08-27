@@ -54,6 +54,13 @@ class CustomActionTest {
     }
 
     @Test
+    fun `custom actions backup rejects built in ids`() {
+        val invalid_backup = """{"version":1,"actions":[{"id":"take_screenshot","label":"Oops","shell_command":"echo"}]}"""
+
+        assertTrue(runCatching { parse_custom_actions_backup(invalid_backup) }.isFailure)
+    }
+
+    @Test
     fun `custom actions backup file name includes timestamp`() {
         assertEquals(
             "shizuku-custom-actions-backup-20260404-153045.json",
@@ -89,7 +96,7 @@ class CustomActionTest {
 
         assertEquals(
             listOf(actions[2], actions[1]),
-            DynamicShortcutSync.published_custom_actions(actions, ShortcutActions.all.size + 2)
+            DynamicShortcutSync.published_custom_actions(actions, ShortcutActions.public_shortcut_ids.size + 2)
         )
     }
 
@@ -101,7 +108,7 @@ class CustomActionTest {
             CustomAction("three", "Three", "three")
         )
 
-        val sync_plan = DynamicShortcutSync.sync_plan(actions, ShortcutActions.all.size + 2)
+        val sync_plan = DynamicShortcutSync.sync_plan(actions, ShortcutActions.public_shortcut_ids.size + 2)
 
         assertEquals(listOf(actions[2], actions[1], actions[0]), sync_plan.all_custom_actions)
         assertEquals(2, sync_plan.dynamic_shortcut_count)

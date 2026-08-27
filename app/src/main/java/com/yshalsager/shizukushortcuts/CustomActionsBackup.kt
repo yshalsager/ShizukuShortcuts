@@ -58,6 +58,9 @@ fun parse_custom_actions_backup(serialized_backup: String): List<CustomAction> {
         throw IllegalArgumentException("Invalid backup action")
     }
     if (actions.map { it.id }.toSet().size != actions.size) throw IllegalArgumentException("Duplicate backup action id")
+    if (actions.any { action -> ShortcutActions.all.any { it.id == action.id } }) {
+        throw IllegalArgumentException("Reserved backup action id")
+    }
 
     return actions
 }

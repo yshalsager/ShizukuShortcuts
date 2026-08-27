@@ -25,7 +25,12 @@ class ShortcutXmlSyncTest {
             shortcut_actions[shortcut_id] = action
         }
 
-        assertEquals(ShortcutActions.ids.toSet(), shortcut_actions.keys)
-        assertEquals(ShortcutActions.all.associate { it.id to it.shortcut_intent_action }, shortcut_actions)
+        assertEquals(ShortcutActions.public_shortcut_ids, shortcut_actions.keys)
+        assertEquals(
+            ShortcutActions.all
+                .filter { it.id in ShortcutActions.public_shortcut_ids }
+                .associate { it.id to it.shortcut_intent_action },
+            shortcut_actions
+        )
     }
 }

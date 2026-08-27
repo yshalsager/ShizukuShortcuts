@@ -39,10 +39,7 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
     private val shortcut_sync_scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
 
     override val actions: StateFlow<List<CustomAction>> = state_flow.asStateFlow()
-
-    init {
-        schedule_shortcut_sync(state_flow.value)
-    }
+    internal val initial_shortcut_sync = schedule_shortcut_sync(state_flow.value)
 
     override fun add_action(label: String, shell_command: String): CustomAction {
         val action = CustomAction(
@@ -82,13 +79,13 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
         schedule_shortcut_sync(actions, deleted_action_id)
     }
 
-    private fun schedule_shortcut_sync(actions: List<CustomAction>, deleted_action_id: String? = null) {
+    private fun schedule_shortcut_sync(actions: List<CustomAction>, deleted_action_id: String? = null) =
         shortcut_sync_scope.launch {
             deleted_action_id?.let { DynamicShortcutSync.delete_custom_shortcut(app_context, it) }
+            DynamicShortcutSync.refresh_sensitive_shortcuts(app_context)
             DynamicShortcutSync.refresh_custom_shortcuts(app_context, actions)
             ActionWidgetProvider.refresh_widgets(app_context)
         }
-    }
 }
 
 fun validate_custom_action(label: String, shell_command: String): Int? {
