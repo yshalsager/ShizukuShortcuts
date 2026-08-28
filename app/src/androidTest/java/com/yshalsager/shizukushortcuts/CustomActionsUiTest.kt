@@ -12,7 +12,9 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.unit.dp
@@ -75,9 +77,13 @@ class CustomActionsUiTest {
             compose_rule.activity.getString(R.string.delete_action)
         )
 
-        delete_buttons[0].performClick()
-        delete_buttons[0].performClick()
-        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.undo_action)).performClick()
+        delete_buttons[0].performSemanticsAction(SemanticsActions.OnClick)
+        delete_buttons[0].performSemanticsAction(SemanticsActions.OnClick)
+        val undo_label = compose_rule.activity.getString(R.string.undo_action)
+        compose_rule.waitUntil(5_000) {
+            compose_rule.onAllNodesWithText(undo_label).fetchSemanticsNodes().size == 1
+        }
+        compose_rule.onNodeWithText(undo_label).performClick()
 
         compose_rule.onNodeWithText("Custom command").assertIsDisplayed()
         compose_rule.onAllNodesWithText("Second command").assertCountEquals(0)
