@@ -33,7 +33,8 @@ Outstanding work:
 - [x] Show the active action, disable `Try` while it runs, and reject concurrent dispatch instead of queueing duplicates.
 - [x] Interactive controls use 48 dp targets; unavailable Shizuku state disables only `Try`, not shortcut management.
 - [x] Show plural-aware current/imported restore counts and explain pinned-shortcut effects.
-- [ ] Add delete undo, safer shell-command editing, and higher-contrast widgets.
+- [x] Give widgets a high-contrast day/night surface, 56 dp minimum height, preview, and horizontal resizing.
+- [ ] Add delete undo and safer shell-command editing.
 - [ ] Split the oversized activity and prefer standard Material components where they reduce code and accessibility debt.
 - [ ] Run lint and regular instrumentation tests in CI, align Java versions, and pin release tooling.
 - [ ] Complete physical-device/OEM and true two-version upgrade testing.

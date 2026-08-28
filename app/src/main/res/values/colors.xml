@@ -1,4 +1,6 @@
 <resources>
     <color name='brand_seed'>#C75B12</color>
+    <color name='widget_background'>#F2F1F5FF</color>
+    <color name='widget_foreground'>#101A2B</color>
 </resources>
 

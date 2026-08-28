@@ -290,6 +290,7 @@ Widgets are also action-based and use the same dispatch contract:
 - one widget instance binds to one `action_id` in `WidgetBindingsRepository`
 - widget tap uses the same tokenized activity trampoline, which can legally start `ShortcutDispatchService` while the app is backgrounded
 - if a previously bound custom action is deleted, the widget shows a removed state and opens `ActionWidgetConfigureActivity` for rebinding
+- the widget uses high-contrast day/night surfaces, a 56 dp minimum height, launcher preview, and horizontal resizing
 
 ## 5. MainActivity: condensed home screen
 
