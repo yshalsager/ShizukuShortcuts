@@ -21,6 +21,7 @@
     <string name='custom_action_label_placeholder'>اختصار مخصص</string>
     <string name='custom_action_shell_command'>أمر shell</string>
     <string name='custom_action_shell_placeholder'>cmd statusbar expand-notifications</string>
+    <string name='custom_action_shell_warning'>يعمل بصلاحيات shell عبر Shizuku. تنتهي مهلة الأمر بعد 5 ثوانٍ، ويقتصر الناتج الملتقط على 64 KiB.</string>
     <string name='custom_actions_empty'>لا توجد إجراءات مخصصة بعد. أضف واحداً لتشغيل أمر shell خاص بك وتثبيته.</string>
     <string name='custom_actions_backup'>نسخ احتياطي</string>
     <string name='custom_actions_restore'>استعادة</string>

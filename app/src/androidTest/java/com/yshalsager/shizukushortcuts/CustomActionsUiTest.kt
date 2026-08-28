@@ -61,6 +61,14 @@ class CustomActionsUiTest {
     }
 
     @Test
+    fun custom_action_editor_explains_privileged_limits() {
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.add_custom_action)).performClick()
+
+        compose_rule.onNodeWithContentDescription(compose_rule.activity.getString(R.string.custom_action_shell_command)).assertIsDisplayed()
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.custom_action_shell_warning)).assertIsDisplayed()
+    }
+
+    @Test
     fun custom_action_management_stays_accessible_when_shizuku_is_unavailable() {
         fake_manager.set_not_ready()
         compose_rule.onNodeWithText("Custom command").assertIsDisplayed()

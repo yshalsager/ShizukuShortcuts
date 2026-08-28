@@ -57,6 +57,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -647,6 +648,7 @@ private fun AddCustomActionDialog(
                 .clip(RoundedCornerShape(24.dp))
                 .background(colors.surface)
                 .border(1.dp, colors.border, RoundedCornerShape(24.dp))
+                .verticalScroll(rememberScrollState())
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -671,10 +673,15 @@ private fun AddCustomActionDialog(
                 label = stringResource(R.string.custom_action_shell_command),
                 value = shell_command,
                 placeholder = stringResource(R.string.custom_action_shell_placeholder),
+                is_shell_command = true,
                 on_value_change = {
                     shell_command = it
                     error_res = null
                 }
+            )
+            BasicText(
+                text = stringResource(R.string.custom_action_shell_warning),
+                style = body_text_style(colors.text_muted)
             )
 
             error_res?.let {
@@ -774,17 +781,23 @@ private fun LabeledField(
     label: String,
     value: String,
     placeholder: String,
+    is_shell_command: Boolean = false,
     on_value_change: (String) -> Unit
 ) {
+    val field_style = body_text_style(colors.text).let {
+        if (is_shell_command) it.copy(fontFamily = FontFamily.Monospace, textDirection = TextDirection.Ltr) else it
+    }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         BasicText(
             text = label,
+            modifier = Modifier.clearAndSetSemantics { },
             style = body_text_style(colors.text_muted)
         )
         BasicTextField(
             value = value,
             onValueChange = on_value_change,
-            textStyle = body_text_style(colors.text),
+            modifier = Modifier.semantics { contentDescription = label },
+            textStyle = field_style,
             decorationBox = { inner_text_field ->
                 Box(
                     modifier = Modifier
@@ -798,7 +811,7 @@ private fun LabeledField(
                     if (value.isBlank()) {
                         BasicText(
                             text = placeholder,
-                            style = body_text_style(colors.text_muted)
+                            style = field_style.copy(color = colors.text_muted)
                         )
                     }
                     inner_text_field()

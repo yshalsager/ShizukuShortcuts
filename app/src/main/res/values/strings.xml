@@ -21,6 +21,7 @@
     <string name='custom_action_label_placeholder'>My shortcut</string>
     <string name='custom_action_shell_command'>Shell command</string>
     <string name='custom_action_shell_placeholder'>cmd statusbar expand-notifications</string>
+    <string name='custom_action_shell_warning'>Runs with Shizuku shell privileges. Commands time out after 5 seconds; captured output is limited to 64 KiB.</string>
     <string name='custom_actions_empty'>No custom actions yet. Add one to run and pin your own shell command.</string>
     <string name='custom_actions_backup'>Backup</string>
     <string name='custom_actions_restore'>Restore</string>
