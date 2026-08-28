@@ -28,7 +28,7 @@ The original findings are retained below for context. Completed work:
 
 Outstanding work:
 
-- [ ] Move shortcut execution to a lifecycle-independent internal service and route widgets directly to it.
+- [x] Move shortcut and widget execution to a lifecycle-independent internal service; widgets retain the activity trampoline required by background-service limits.
 - [x] Consolidate Shizuku and permission presentation into one mutually exclusive readiness status.
 - [x] Show the active action, disable `Try` while it runs, and reject concurrent dispatch instead of queueing duplicates.
 - [x] Interactive controls use 48 dp targets; unavailable Shizuku state disables only `Try`, not shortcut management.
@@ -269,7 +269,7 @@ Launcher
 
 The current activity cannot simply finish before completion because `lifecycleScope` would be cancelled and `perform_action()` would be interrupted. Moving execution to a short-lived internal service separates the command from the trampoline lifecycle and minimizes visible activity time.
 
-For widgets, use `PendingIntent.getService()` directly so widget taps do not need an activity at all.
+For widgets, direct `PendingIntent.getService()` was considered but is not reliable for a cold background UID on Android 8+. The implemented widget path keeps the zero-UI activity trampoline, which immediately hands execution to the internal service.
 
 ---
 

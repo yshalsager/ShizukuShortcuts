@@ -52,7 +52,7 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 - Keeps built-in static launcher shortcuts and publishes custom dynamic shortcuts to the launcher long-press menu
 - Supports pinned launcher shortcuts for both built-ins and custom actions
 - Supports a unified home-screen widget: each widget instance can be configured to one built-in or custom action
-- Re-routes widget taps through `ShortcutDispatchActivity` and shows a rebind prompt if a linked custom action is removed
+- Routes widget taps through the disposable trampoline into an internal dispatch service and shows a rebind prompt if a linked custom action is removed
 - Shows one clear Shizuku readiness status with the next required action
 - Lets you `Try`, `Edit`, `Pin`, or `Delete` custom actions from the home screen
 - Shows the active action and rejects concurrent dispatch instead of queueing duplicate commands
@@ -73,7 +73,8 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 Core pieces:
 
 - `MainActivity`: condensed Compose home screen with one readiness status, inline guidance, and action rows
-- `ShortcutDispatchActivity`: transparent trampoline for launcher shortcuts
+- `ShortcutDispatchActivity`: disposable launcher-shortcut trampoline
+- `ShortcutDispatchService`: internal lifecycle-independent shortcut/widget execution
 - `AppShizukuManager`: binder state, permission flow, and user-service binding
 - `PrivilegedStatusBarService`: Shizuku user service binder
 - `AppCustomActionsRepository`: local custom-action persistence in one SharedPreferences JSON payload

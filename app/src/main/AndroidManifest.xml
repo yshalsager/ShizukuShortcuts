@@ -21,6 +21,10 @@
             android:multiprocess='false'
             android:permission='android.permission.INTERACT_ACROSS_USERS_FULL' />
 
+        <service
+            android:name='.ShortcutDispatchService'
+            android:exported='false' />
+
         <activity
             android:name='.ShortcutDispatchActivity'
             android:exported='true'

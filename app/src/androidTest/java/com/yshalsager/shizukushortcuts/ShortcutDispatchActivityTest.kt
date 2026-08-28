@@ -2,19 +2,25 @@ package com.yshalsager.shizukushortcuts
 
 import android.app.Instrumentation
 import android.content.Context
+import android.content.Intent
+import android.os.SystemClock
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class ShortcutDispatchActivityTest {
@@ -37,38 +43,30 @@ class ShortcutDispatchActivityTest {
     }
 
     @Test
-    fun permission_denied_finishes_without_setup() = assert_dispatch_finishes_without_setup(
-        ActionResult.permission_denied(ShortcutActions.expand_notifications.id)
-    )
+    fun dispatch_finishes_without_setup() = assert_dispatch_finishes_without_setup()
 
     @Test
-    fun shizuku_unavailable_finishes_without_setup() = assert_dispatch_finishes_without_setup(
-        ActionResult.shizuku_unavailable(ShortcutActions.expand_notifications.id)
-    )
+    fun invalid_overlap_does_not_interrupt_or_leak_service() {
+        val action = ActionCatalog.built_in_actions(context).first()
+        fake_manager.block_action = CompletableDeferred()
+        context.startService(ShortcutDispatchService.build_intent(context, action))
+        assertEquals(true, fake_manager.action_started.await(2, TimeUnit.SECONDS))
 
-    @Test
-    fun busy_dispatch_finishes_silently() = assert_dispatch_finishes_without_setup(
-        ActionResult.busy(ShortcutActions.expand_notifications.id)
-    )
-
-    @Test
-    fun successful_dispatch_finishes_without_setup() = assert_dispatch_finishes_without_setup(
-        ActionResult.success(
-            action_id = ShortcutActions.expand_notifications.id,
-            executed_command = "cmd statusbar expand-notifications",
-            used_fallback = false
+        context.startService(
+            Intent(context, ShortcutDispatchService::class.java)
+                .putExtra(ShortcutActions.extra_action_id, "missing")
         )
-    )
+        fake_manager.block_action?.complete(Unit)
+        assertEquals(true, fake_manager.action_completed.await(2, TimeUnit.SECONDS))
+        SystemClock.sleep(200)
+
+        assertEquals(action.id, fake_manager.last_action?.id)
+        assertFalse(context.stopService(ShortcutDispatchService.build_intent(context, action)))
+    }
 
     @Test
     fun custom_dispatch_resolves_by_id() {
         fake_custom_actions_repository.set_actions(listOf(CustomAction("custom-id", "Custom", "cmd statusbar expand-notifications")))
-        fake_manager.action_result = ActionResult.success(
-            action_id = "custom-id",
-            executed_command = "sh -c cmd statusbar expand-notifications",
-            used_fallback = false
-        )
-
         ActivityScenario.launch<ShortcutDispatchActivity>(
             ActionCatalog.build_dispatch_intent(context, ActionCatalog.find_by_id(context, "custom-id")!!)
         ).use { scenario ->
@@ -78,8 +76,7 @@ class ShortcutDispatchActivityTest {
         }
     }
 
-    private fun assert_dispatch_finishes_without_setup(result: ActionResult) {
-        fake_manager.action_result = result
+    private fun assert_dispatch_finishes_without_setup() {
         val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
 
         ActivityScenario.launch<ShortcutDispatchActivity>(
@@ -98,8 +95,10 @@ class ShortcutDispatchActivityTest {
 
         override val state: StateFlow<ShizukuState> = state_flow
         override val running_action_id = MutableStateFlow<String?>(null)
-        var action_result: ActionResult = ActionResult.success("expand_notifications", "", false)
         var last_action: AppActionItem? = null
+        var block_action: CompletableDeferred<Unit>? = null
+        val action_started = CountDownLatch(1)
+        val action_completed = CountDownLatch(1)
 
         override fun refresh_state() = Unit
 
@@ -107,7 +106,10 @@ class ShortcutDispatchActivityTest {
 
         override suspend fun perform_action(action: AppActionItem): ActionResult {
             last_action = action
-            return action_result.copy(action_id = action.id)
+            action_started.countDown()
+            block_action?.await()
+            action_completed.countDown()
+            return ActionResult.success(action.id, "", false)
         }
     }
 

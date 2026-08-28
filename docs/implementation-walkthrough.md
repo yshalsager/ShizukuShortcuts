@@ -58,11 +58,12 @@ java = 'openjdk-25.0.2'
 
 ## 2. Manifest entrypoints
 
-The app has seven important manifest entries:
+The app has eight important manifest entries:
 
 - `ShizukuProvider` receives the Shizuku binder
 - `MainActivity` is the launcher/setup UI
 - `ShortcutDispatchActivity` is the transparent shortcut trampoline
+- `ShortcutDispatchService` owns lifecycle-independent shortcut/widget execution
 - `ActionWidgetConfigureActivity` is launched by widget placement/rebinding
 - `ActionWidgetProvider` is the app widget receiver
 - `ShortcutMigrationReceiver` refreshes tokenized shortcuts and widgets after app updates
@@ -287,7 +288,7 @@ Pinned home-screen shortcuts for both built-ins and customs go through the same 
 Widgets are also action-based and use the same dispatch contract:
 
 - one widget instance binds to one `action_id` in `WidgetBindingsRepository`
-- widget tap sends an explicit `PendingIntent` to `ShortcutDispatchActivity` with `ShortcutActions.extra_action_id`
+- widget tap uses the same tokenized activity trampoline, which can legally start `ShortcutDispatchService` while the app is backgrounded
 - if a previously bound custom action is deleted, the widget shows a removed state and opens `ActionWidgetConfigureActivity` for rebinding
 
 ## 5. MainActivity: condensed home screen
@@ -493,40 +494,23 @@ override fun request_permission() {
 
 ## 8. Shortcut dispatch
 
-When the user taps a launcher shortcut or widget action, `ShortcutDispatchActivity` starts first.
-It uses an isolated task and a dedicated translucent theme so the trampoline can disappear without foregrounding or removing the main app task.
+Launcher shortcuts and widgets first reach `ShortcutDispatchActivity`. It resolves and authorizes the intent, starts the internal `ShortcutDispatchService`, and immediately closes its isolated task. Keeping this zero-UI trampoline lets cold widget taps start the service within Android background-execution limits.
 
 File: [ShortcutDispatchActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivity.kt)
 
-It resolves public built-ins directly and requires the per-install token for sensitive built-ins and custom actions, then runs the action through the manager:
+It resolves public built-ins directly and requires the per-install token for sensitive built-ins and custom actions. The non-exported service then runs the action through the manager and owns the bounded operation independently of the trampoline lifecycle:
 
 ```kotlin
 val action = ActionCatalog.find_by_intent(this, intent)
 if (action == null) {
     Toast.makeText(this, getString(R.string.dispatch_missing_action), Toast.LENGTH_SHORT).show()
-    finishAndRemoveTask()
-    return
+} else {
+    startService(ShortcutDispatchService.build_intent(this, action))
 }
-
-lifecycleScope.launch {
-    handle_result(manager.perform_action(action))
-}
+finishAndRemoveTask()
 ```
 
-Dispatch never opens `MainActivity`. Non-busy failures show a short toast, while every result closes the isolated task:
-
-```kotlin
-private fun handle_result(result: ActionResult) {
-    val message = when (result.status_code) {
-        ActionResult.STATUS_SUCCESS, ActionResult.STATUS_BUSY -> null
-        ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
-        ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
-        else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
-    }
-    message?.let { Toast.makeText(this, it, Toast.LENGTH_SHORT).show() }
-    finishAndRemoveTask()
-}
-```
+Dispatch never opens `MainActivity`. The service stays silent for success/busy results and toasts only non-busy failures before stopping itself.
 
 ## 9. Binding the Shizuku user service
 
@@ -719,11 +703,12 @@ The runtime path is:
 
 1. User opens the home screen or taps a static, dynamic, or pinned launcher shortcut, or taps a configured widget
 2. Home screen `Try` buttons call `AppShizukuManager.perform_action()` directly
-3. Launcher shortcuts go through `ShortcutDispatchActivity`
-4. `ActionCatalog` resolves the requested built-in or custom action
-5. `AppShizukuManager` briefly waits for a cold-start Binder, then checks permission
-6. The app binds `PrivilegedStatusBarService` through Shizuku
-7. The app calls either `perform_action(action_id)` or `perform_custom_action(action_id, shell_command)` over Binder
-8. `ActionPerformer` runs the built-in argv command or the custom `sh -c` command in the privileged user service process
-9. The result is returned to the app
-10. The UI either shows a small error toast or finishes silently; shortcut dispatch never opens setup
+3. Launcher shortcuts and widgets authorize through `ShortcutDispatchActivity`
+4. The disposable activity immediately hands authorized actions to the internal service and closes
+5. `ActionCatalog` resolves the requested built-in or custom action
+6. `AppShizukuManager` briefly waits for a cold-start Binder, then checks permission
+7. The app binds `PrivilegedStatusBarService` through Shizuku
+8. The app calls either `perform_action(action_id)` or `perform_custom_action(action_id, shell_command)` over Binder
+9. `ActionPerformer` runs the built-in argv command or the custom `sh -c` command in the privileged user service process
+10. The result is returned to the app
+11. The UI/service either shows a small error toast or finishes silently; shortcut dispatch never opens setup
