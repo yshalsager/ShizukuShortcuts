@@ -150,8 +150,15 @@ This project uses [mise](https://mise.jdx.dev/) for tool management.
 # Run unit tests
 ./gradlew :app:testDebugUnitTest
 
+# Run lint
+./gradlew :app:lintDebug
+
 # Build Android test APK
 ./gradlew :app:assembleDebugAndroidTest
+
+# Run regular instrumentation tests on a connected device
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.notPackage=com.yshalsager.shizukushortcuts.screenshots
 ```
 
 ## Fastlane And Metadata
@@ -180,7 +187,7 @@ bundle exec fastlane android capture_screenshots
 
 GitHub Actions included in this repo:
 
-- `ci.yml`: unit tests, debug build, release build, metadata validation
+- `ci.yml`: unit tests, lint, debug/release builds, API 34 instrumentation tests, metadata validation
 - `screenshots.yml`: emulator-based fastlane screenshot capture
 - `release.yml`: build release APK and attach it to GitHub releases
 

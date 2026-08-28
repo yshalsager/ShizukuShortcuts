@@ -413,7 +413,7 @@ jobs:
             args=(--from "$prev_tag" "${args[@]}")
           fi
 
-          mise x node -- npx --yes changelogen@latest "${args[@]}"
+          mise x node -- npx --yes changelogen@0.6.2 "${args[@]}"
 
       - name: Create GitHub release
         if: ${{ needs.version.outputs.publish_izzy == 'true' && (github.event_name == 'push' || (inputs.release && inputs.create_tag && !inputs.dry_run)) }}

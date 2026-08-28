@@ -103,8 +103,15 @@
 # Run unit tests
 ./gradlew :app:testDebugUnitTest
 
+# Run lint
+./gradlew :app:lintDebug
+
 # Build Android test APK
 ./gradlew :app:assembleDebugAndroidTest
+
+# Run regular instrumentation tests on a connected device
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.notPackage=com.yshalsager.shizukushortcuts.screenshots
 ```
 
 ## Fastlane و metadata
@@ -133,7 +140,7 @@ bundle exec fastlane android capture_screenshots
 
 يوجد في المستودع:
 
-- `ci.yml`: اختبارات وحدات وبناء debug وrelease والتحقق من metadata
+- `ci.yml`: اختبارات الوحدات وlint وبناء debug وrelease واختبارات instrumentation على API 34 والتحقق من metadata
 - `screenshots.yml`: التقاط لقطات الشاشة على محاكي
 - `release.yml`: بناء APK للإصدار وإرفاقه مع GitHub Releases
 

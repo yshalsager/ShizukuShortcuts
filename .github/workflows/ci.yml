@@ -29,14 +29,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      - name: Run unit tests
-        run: mise x java -- ./gradlew :app:testDebugUnitTest
+      - name: Test, lint, and build
+        run: mise x java -- ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest
 
-      - name: Build debug APK
-        run: mise x java -- ./gradlew :app:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
-      - name: Build release APK
-        run: mise x java -- ./gradlew :app:assembleRelease
+      - name: Run instrumentation tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          script: mise x java -- ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notPackage=com.yshalsager.shizukushortcuts.screenshots
 
   validate_fastlane_metadata:
     runs-on: ubuntu-latest

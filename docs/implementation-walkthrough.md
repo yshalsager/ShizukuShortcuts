@@ -53,7 +53,7 @@ File: [mise.toml](../mise.toml)
 
 ```toml
 [tools]
-java = 'openjdk-25.0.2'
+java = 'temurin-17.0.18+8'
 ```
 
 ## 2. Manifest entrypoints

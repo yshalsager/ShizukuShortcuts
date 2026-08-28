@@ -37,7 +37,7 @@ Outstanding work:
 - [x] Render shell commands monospace/LTR and disclose Shizuku privileges, the five-second timeout, and 64 KiB output limit.
 - [x] Custom-action deletion offers an accessibility-aware undo and restores the same ID and list position.
 - [x] Split launcher orchestration from `MainScreen`; Snackbar was the only Material replacement adopted because it reduced custom timing and accessibility code.
-- [ ] Run lint and regular instrumentation tests in CI, align Java versions, and pin release tooling.
+- [x] CI runs lint and API 34 instrumentation tests; local/CI use Temurin 17.0.18 and release notes pin Changelogen 0.6.2.
 - [ ] Complete physical-device/OEM and true two-version upgrade testing.
 
 ---
