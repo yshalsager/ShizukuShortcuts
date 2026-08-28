@@ -28,11 +28,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -342,7 +345,8 @@ private fun MainScreen(
         if (pending_restore_count != null) {
             RestoreCustomActionsDialog(
                 colors = colors,
-                actions_count = pending_restore_count,
+                current_actions_count = custom_actions.size,
+                imported_actions_count = pending_restore_count,
                 on_confirm = on_confirm_restore_custom_actions,
                 on_dismiss = on_dismiss_restore_custom_actions
             )
@@ -702,7 +706,8 @@ private fun AddCustomActionDialog(
 @Composable
 private fun RestoreCustomActionsDialog(
     colors: AppColors,
-    actions_count: Int,
+    current_actions_count: Int,
+    imported_actions_count: Int,
     on_confirm: () -> Unit,
     on_dismiss: () -> Unit
 ) {
@@ -713,6 +718,7 @@ private fun RestoreCustomActionsDialog(
                 .clip(RoundedCornerShape(24.dp))
                 .background(colors.surface)
                 .border(1.dp, colors.border, RoundedCornerShape(24.dp))
+                .verticalScroll(rememberScrollState())
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -722,7 +728,23 @@ private fun RestoreCustomActionsDialog(
             )
 
             BasicText(
-                text = stringResource(R.string.custom_actions_restore_confirm_message, actions_count),
+                text = pluralStringResource(
+                    R.plurals.custom_actions_current_count,
+                    current_actions_count,
+                    current_actions_count
+                ),
+                style = body_text_style(colors.text_muted)
+            )
+            BasicText(
+                text = pluralStringResource(
+                    R.plurals.custom_actions_imported_count,
+                    imported_actions_count,
+                    imported_actions_count
+                ),
+                style = body_text_style(colors.text_muted)
+            )
+            BasicText(
+                text = stringResource(R.string.custom_actions_restore_shortcut_effect),
                 style = body_text_style(colors.text_muted)
             )
 

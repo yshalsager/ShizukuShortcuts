@@ -303,7 +303,7 @@ Widgets are also action-based and use the same dispatch contract:
 - custom-action `Backup` and `Restore` entry actions
 - a `Try` text action and a `Pin` icon action for each row
 - `Edit` and `Delete` for custom rows
-- a restore confirmation dialog before destructive replace-all import
+- a restore confirmation dialog with plural-aware current/imported counts and pinned-shortcut effects before destructive replace-all import
 
 File: [MainActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt)
 

@@ -30,7 +30,15 @@
     <string name='custom_actions_restore_sync_failed'>Actions restored; shortcuts or widgets could not be refreshed</string>
     <string name='custom_actions_restore_failed'>Could not restore backup file</string>
     <string name='custom_actions_restore_confirm_title'>Replace custom actions?</string>
-    <string name='custom_actions_restore_confirm_message'>This will replace current custom actions with %1$d imported actions.</string>
+    <plurals name='custom_actions_current_count'>
+        <item quantity='one'>%1$d current action</item>
+        <item quantity='other'>%1$d current actions</item>
+    </plurals>
+    <plurals name='custom_actions_imported_count'>
+        <item quantity='one'>%1$d imported action</item>
+        <item quantity='other'>%1$d imported actions</item>
+    </plurals>
+    <string name='custom_actions_restore_shortcut_effect'>Pinned shortcuts for removed actions will be disabled; matching shortcuts will be updated.</string>
     <string name='custom_actions_restore_confirm_action'>Restore</string>
     <string name='custom_action_label_required'>Enter a label.</string>
     <string name='custom_action_command_required'>Enter a shell command.</string>
