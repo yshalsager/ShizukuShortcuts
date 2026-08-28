@@ -11,7 +11,7 @@ File: [app/build.gradle.kts](../app/build.gradle.kts)
 
 ```kotlin
 android {
-    compileSdk = 36
+    compileSdk = 37
 
     dependenciesInfo {
         includeInApk = false

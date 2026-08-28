@@ -255,7 +255,7 @@ jobs:
 
       - uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0'
 
       - uses: jdx/mise-action@v4
         with:
@@ -358,7 +358,7 @@ jobs:
             echo 'ANDROID_SDK_ROOT/ANDROID_HOME not set'
             exit 1
           fi
-          "$sdk_root/build-tools/36.0.0/apksigner" verify --verbose "${{ steps.artifacts.outputs.apk_release }}"
+          "$sdk_root/build-tools/37.0.0/apksigner" verify --verbose "${{ steps.artifacts.outputs.apk_release }}"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
