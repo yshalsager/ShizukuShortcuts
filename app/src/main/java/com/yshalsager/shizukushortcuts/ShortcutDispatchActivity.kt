@@ -26,7 +26,7 @@ class ShortcutDispatchActivity : ComponentActivity() {
 
     private fun handle_result(result: ActionResult) {
         val message = when (result.status_code) {
-            ActionResult.STATUS_SUCCESS -> null
+            ActionResult.STATUS_SUCCESS, ActionResult.STATUS_BUSY -> null
             ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
             ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
             else -> result.message.ifBlank { getString(R.string.dispatch_failed) }

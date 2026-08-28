@@ -81,6 +81,7 @@ class FastlaneScreenshotsTest {
         )
 
         override val state: StateFlow<ShizukuState> = state_flow
+        override val running_action_id = MutableStateFlow<String?>(null)
 
         override fun refresh_state() = Unit
 

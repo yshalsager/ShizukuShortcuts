@@ -36,6 +36,7 @@
     <string name='custom_action_command_required'>أدخل أمر shell.</string>
     <string name='custom_action_strip_adb'>أدخل أمر shell فقط، بدون بادئة `adb shell`.</string>
     <string name='try_action'>جرّب</string>
+    <string name='action_running'>جارٍ التشغيل…</string>
     <string name='pin_action'>ثبّت</string>
     <string name='edit_action'>عدّل</string>
     <string name='delete_action'>احذف</string>

@@ -99,9 +99,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by manager.state.collectAsState()
+            val running_action_id by manager.running_action_id.collectAsState()
             val custom_actions by custom_actions_repository.actions.collectAsState()
             MainScreen(
                 state = state,
+                running_action_id = running_action_id,
                 custom_actions = custom_actions,
                 on_request_permission = manager::request_permission,
                 on_try_action = ::try_action,
@@ -144,9 +146,10 @@ class MainActivity : ComponentActivity() {
                 )
                 ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
                 ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
+                ActionResult.STATUS_BUSY -> null
                 else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
             }
-            show_toast(message)
+            message?.let(::show_toast)
             manager.refresh_state()
         }
     }
@@ -189,6 +192,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun MainScreen(
     state: ShizukuState,
+    running_action_id: String?,
     custom_actions: List<CustomAction>,
     on_request_permission: () -> Unit,
     on_try_action: (AppActionItem) -> Unit,
@@ -253,6 +257,7 @@ private fun MainScreen(
                     colors = colors,
                     action = built_in_actions[index],
                     is_ready = is_ready,
+                    running_action_id = running_action_id,
                     on_try_action = on_try_action,
                     on_pin_shortcut = on_pin_shortcut,
                     on_delete_action = null
@@ -298,6 +303,7 @@ private fun MainScreen(
                         colors = colors,
                         action = custom_action_items[index],
                         is_ready = is_ready,
+                        running_action_id = running_action_id,
                         on_try_action = on_try_action,
                         on_pin_shortcut = on_pin_shortcut,
                         on_edit_action = { action ->
@@ -503,6 +509,7 @@ private fun ActionRow(
     colors: AppColors,
     action: AppActionItem,
     is_ready: Boolean,
+    running_action_id: String?,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
     on_edit_action: ((AppActionItem) -> Unit)? = null,
@@ -547,7 +554,7 @@ private fun ActionRow(
             )
 
             if (!has_management_actions) {
-                ActionControls(colors, action, is_ready, on_try_action, on_pin_shortcut, null, null)
+                ActionControls(colors, action, is_ready, running_action_id, on_try_action, on_pin_shortcut, null, null)
             }
         }
 
@@ -556,6 +563,7 @@ private fun ActionRow(
                 colors = colors,
                 action = action,
                 is_ready = is_ready,
+                running_action_id = running_action_id,
                 on_try_action = on_try_action,
                 on_pin_shortcut = on_pin_shortcut,
                 on_edit_action = on_edit_action,
@@ -571,6 +579,7 @@ private fun ActionControls(
     colors: AppColors,
     action: AppActionItem,
     is_ready: Boolean,
+    running_action_id: String?,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
     on_edit_action: ((AppActionItem) -> Unit)?,
@@ -584,8 +593,8 @@ private fun ActionControls(
     ) {
         InlineActionButton(
             colors = colors,
-            label = stringResource(R.string.try_action).uppercase(),
-            enabled = is_ready,
+            label = stringResource(if (running_action_id == action.id) R.string.action_running else R.string.try_action).uppercase(),
+            enabled = is_ready && running_action_id == null,
             on_click = { on_try_action(action) }
         )
         IconActionButton(

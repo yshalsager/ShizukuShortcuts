@@ -513,12 +513,12 @@ lifecycleScope.launch {
 }
 ```
 
-Dispatch never opens `MainActivity`. Failures show a short toast, while every result closes the isolated task:
+Dispatch never opens `MainActivity`. Non-busy failures show a short toast, while every result closes the isolated task:
 
 ```kotlin
 private fun handle_result(result: ActionResult) {
     val message = when (result.status_code) {
-        ActionResult.STATUS_SUCCESS -> null
+        ActionResult.STATUS_SUCCESS, ActionResult.STATUS_BUSY -> null
         ActionResult.STATUS_SHIZUKU_UNAVAILABLE -> getString(R.string.dispatch_need_shizuku)
         ActionResult.STATUS_PERMISSION_DENIED -> getString(R.string.dispatch_need_permission)
         else -> result.message.ifBlank { getString(R.string.dispatch_failed) }
@@ -544,18 +544,22 @@ private val user_service_args = Shizuku.UserServiceArgs(
     .processNameSuffix("statusbar_shortcuts")
 ```
 
-Binding and execution share a 7-second timeout and are serialized because Shizuku reuses one connection holder per service tag. An atomic completion guard ensures that connect, disconnect, timeout, and cancellation can only complete and unbind once:
+Binding and execution share a 7-second timeout. One action owns the Shizuku connection at a time because Shizuku reuses one connection holder per service tag; concurrent dispatch is rejected before readiness checks instead of queued. The active action ID also drives the in-app running label and disables all `Try` controls. The manager finishes or times out an accepted action even if its trampoline activity closes. An atomic completion guard ensures that connect, disconnect, timeout, and cancellation can only complete and unbind once:
 
 ```kotlin
-return withTimeoutOrNull(user_service_timeout_ms) {
-    action_mutex.withLock { bind_and_perform(action) }
-} ?: ActionResult.execution_timed_out(
-    action_id = action.id,
-    executed_command = action.shell_command ?: action.id
-)
+if (!running_action_flow.compareAndSet(null, action.id)) return ActionResult.busy(action.id)
+return withContext(NonCancellable) {
+    try {
+        if (!await_binder()) return@withContext ActionResult.shizuku_unavailable(action.id)
+        withTimeoutOrNull(user_service_timeout_ms) { bind_and_perform(action) }
+            ?: ActionResult.execution_timed_out(action.id, action.shell_command ?: action.id)
+    } finally {
+        running_action_flow.value = null
+    }
+}
 ```
 
-Bind, remote call, and unbind are queued on one worker, so a stuck Binder transaction cannot start overlapping transactions. Timeout returns without waiting for that worker, and the completion guard discards any late result:
+Bind, remote call, and unbind use one worker, so a stuck Binder transaction cannot start overlapping transactions. Timeout returns without waiting for that worker, and the completion guard discards any late result:
 
 ```kotlin
 override fun onServiceConnected(name: ComponentName, service: IBinder) {

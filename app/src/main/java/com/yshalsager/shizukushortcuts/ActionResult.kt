@@ -22,6 +22,7 @@ data class ActionResult(
         const val STATUS_SHIZUKU_UNAVAILABLE = 3
         const val STATUS_PERMISSION_DENIED = 4
         const val STATUS_EXECUTION_TIMED_OUT = 5
+        const val STATUS_BUSY = 6
 
         fun success(action_id: String, executed_command: String, used_fallback: Boolean, message: String = "") =
             ActionResult(STATUS_SUCCESS, action_id, executed_command, message, used_fallback)
@@ -40,6 +41,8 @@ data class ActionResult(
 
         fun permission_denied(action_id: String) =
             ActionResult(STATUS_PERMISSION_DENIED, action_id, message = "Permission denied")
+
+        fun busy(action_id: String) = ActionResult(STATUS_BUSY, action_id)
     }
 }
 

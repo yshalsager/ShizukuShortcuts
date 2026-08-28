@@ -36,6 +36,7 @@
     <string name='custom_action_command_required'>Enter a shell command.</string>
     <string name='custom_action_strip_adb'>Enter only the shell command, without the `adb shell` prefix.</string>
     <string name='try_action'>Try</string>
+    <string name='action_running'>Running…</string>
     <string name='pin_action'>Pin</string>
     <string name='edit_action'>Edit</string>
     <string name='delete_action'>Delete</string>

@@ -47,6 +47,11 @@ class ShortcutDispatchActivityTest {
     )
 
     @Test
+    fun busy_dispatch_finishes_silently() = assert_dispatch_finishes_without_setup(
+        ActionResult.busy(ShortcutActions.expand_notifications.id)
+    )
+
+    @Test
     fun successful_dispatch_finishes_without_setup() = assert_dispatch_finishes_without_setup(
         ActionResult.success(
             action_id = ShortcutActions.expand_notifications.id,
@@ -92,6 +97,7 @@ class ShortcutDispatchActivityTest {
         private val state_flow = MutableStateFlow(ShizukuState())
 
         override val state: StateFlow<ShizukuState> = state_flow
+        override val running_action_id = MutableStateFlow<String?>(null)
         var action_result: ActionResult = ActionResult.success("expand_notifications", "", false)
         var last_action: AppActionItem? = null
 

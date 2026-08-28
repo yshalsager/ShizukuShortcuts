@@ -53,6 +53,14 @@ class CustomActionsUiTest {
     }
 
     @Test
+    fun running_action_disables_all_try_controls() {
+        fake_manager.set_running_action("custom-id")
+
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.action_running).uppercase()).assertIsNotEnabled()
+        compose_rule.onAllNodesWithText(compose_rule.activity.getString(R.string.try_action).uppercase())[0].assertIsNotEnabled()
+    }
+
+    @Test
     fun custom_action_management_stays_accessible_when_shizuku_is_unavailable() {
         fake_manager.set_not_ready()
         compose_rule.onNodeWithText("Custom command").assertIsDisplayed()
@@ -77,7 +85,9 @@ class CustomActionsUiTest {
             )
         )
 
+        private val running_action_flow = MutableStateFlow<String?>(null)
         override val state: StateFlow<ShizukuState> = state_flow
+        override val running_action_id: StateFlow<String?> = running_action_flow
 
         override fun refresh_state() = Unit
 
@@ -88,6 +98,10 @@ class CustomActionsUiTest {
 
         fun set_not_ready() {
             state_flow.value = state_flow.value.copy(is_running = false)
+        }
+
+        fun set_running_action(action_id: String?) {
+            running_action_flow.value = action_id
         }
     }
 

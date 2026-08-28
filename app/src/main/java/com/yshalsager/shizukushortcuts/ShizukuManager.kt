@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.IBinder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,8 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 import java.util.concurrent.atomic.AtomicBoolean
@@ -29,6 +29,7 @@ data class ShizukuState(
 
 interface ShizukuManagerContract {
     val state: StateFlow<ShizukuState>
+    val running_action_id: StateFlow<String?>
     fun refresh_state()
     fun request_permission()
     suspend fun perform_action(action: AppActionItem): ActionResult
@@ -44,7 +45,7 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
     }
 
     private val state_flow = MutableStateFlow(ShizukuState())
-    private val action_mutex = Mutex()
+    private val running_action_flow = MutableStateFlow<String?>(null)
     // ponytail: one worker contains stuck Binder calls; use cancellable oneway calls if parallelism matters
     private val worker_scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private val user_service_args = Shizuku.UserServiceArgs(
@@ -56,6 +57,7 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
         .processNameSuffix("statusbar_shortcuts")
 
     override val state: StateFlow<ShizukuState> = state_flow.asStateFlow()
+    override val running_action_id: StateFlow<String?> = running_action_flow.asStateFlow()
 
     init {
         Shizuku.addBinderReceivedListenerSticky { refresh_state() }
@@ -85,17 +87,24 @@ class AppShizukuManager(app_context: Context) : ShizukuManagerContract {
     }
 
     override suspend fun perform_action(action: AppActionItem): ActionResult {
-        if (!await_binder()) return ActionResult.shizuku_unavailable(action.id)
-        val permission = runCatching { Shizuku.checkSelfPermission() }.getOrNull()
-            ?: return ActionResult.shizuku_unavailable(action.id)
-        if (permission != PackageManager.PERMISSION_GRANTED) return ActionResult.permission_denied(action.id)
-
-        return withTimeoutOrNull(user_service_timeout_ms) {
-            action_mutex.withLock { bind_and_perform(action) }
-        } ?: ActionResult.execution_timed_out(
-            action_id = action.id,
-            executed_command = action.shell_command ?: action.id
-        )
+        if (!running_action_flow.compareAndSet(null, action.id)) return ActionResult.busy(action.id)
+        return withContext(NonCancellable) {
+            try {
+                if (!await_binder()) return@withContext ActionResult.shizuku_unavailable(action.id)
+                val permission = runCatching { Shizuku.checkSelfPermission() }.getOrNull()
+                    ?: return@withContext ActionResult.shizuku_unavailable(action.id)
+                if (permission != PackageManager.PERMISSION_GRANTED) {
+                    return@withContext ActionResult.permission_denied(action.id)
+                }
+                withTimeoutOrNull(user_service_timeout_ms) { bind_and_perform(action) }
+                    ?: ActionResult.execution_timed_out(
+                        action_id = action.id,
+                        executed_command = action.shell_command ?: action.id
+                    )
+            } finally {
+                running_action_flow.value = null
+            }
+        }
     }
 
     private suspend fun bind_and_perform(action: AppActionItem): ActionResult = suspendCancellableCoroutine { continuation ->
