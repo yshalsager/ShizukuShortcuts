@@ -128,7 +128,9 @@ class ShortcutDispatchActivityTest {
             return true
         }
 
-        override fun delete_action(action_id: String) = Unit
+        override fun delete_action(action_id: String): IndexedValue<CustomAction>? = null
+
+        override fun restore_action(deleted_action: IndexedValue<CustomAction>) = Unit
 
         override fun find_by_id(action_id: String) = state_flow.value.firstOrNull { it.id == action_id }
 

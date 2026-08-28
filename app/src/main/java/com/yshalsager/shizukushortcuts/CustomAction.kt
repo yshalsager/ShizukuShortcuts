@@ -27,7 +27,8 @@ interface CustomActionsRepositoryContract {
     fun add_action(label: String, shell_command: String): CustomAction
     fun update_action(action_id: String, label: String, shell_command: String)
     suspend fun replace_all_actions(actions: List<CustomAction>): Boolean
-    fun delete_action(action_id: String)
+    fun delete_action(action_id: String): IndexedValue<CustomAction>?
+    fun restore_action(deleted_action: IndexedValue<CustomAction>)
     fun find_by_id(action_id: String): CustomAction?
 }
 
@@ -78,8 +79,17 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
         }
     }
 
-    override fun delete_action(action_id: String) {
+    override fun delete_action(action_id: String): IndexedValue<CustomAction>? {
+        val deleted_action = state_flow.value.withIndex().firstOrNull { it.value.id == action_id } ?: return null
         save_actions(state_flow.value.filterNot { it.id == action_id })
+        return deleted_action
+    }
+
+    override fun restore_action(deleted_action: IndexedValue<CustomAction>) {
+        if (find_by_id(deleted_action.value.id) != null) return
+        save_actions(state_flow.value.toMutableList().apply {
+            add(deleted_action.index.coerceAtMost(size), deleted_action.value)
+        })
     }
 
     override fun find_by_id(action_id: String) = state_flow.value.firstOrNull { it.id == action_id }

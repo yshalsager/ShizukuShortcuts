@@ -49,6 +49,8 @@
     <string name='pin_action'>Pin</string>
     <string name='edit_action'>Edit</string>
     <string name='delete_action'>Delete</string>
+    <string name='custom_action_deleted'>Action deleted</string>
+    <string name='undo_action'>Undo</string>
     <string name='cancel_action'>Cancel</string>
     <string name='save_action'>Save</string>
     <string name='edit_custom_action_title'>Edit custom action</string>

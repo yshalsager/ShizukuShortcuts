@@ -303,30 +303,35 @@ Widgets are also action-based and use the same dispatch contract:
 - a custom actions section with `Add`
 - custom-action `Backup` and `Restore` entry actions
 - a `Try` text action and a `Pin` icon action for each row
-- `Edit` and `Delete` for custom rows
+- `Edit` and `Delete` for custom rows, with an accessibility-aware undo that preserves action ID and order
 - a restore confirmation dialog with plural-aware current/imported counts and pinned-shortcut effects before destructive replace-all import
 - a monospace, LTR shell-command field that discloses Shizuku privileges, the five-second timeout, and 64 KiB captured-output limit
 
 File: [MainActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt)
 
+`DeleteUndoState` retains the latest deletion across configuration changes. Replacing that token cancels the previous Snackbar, so only the latest deletion can be undone.
+
 ```kotlin
 setContent {
-    val state by manager.state.collectAsState()
     val custom_actions by custom_actions_repository.actions.collectAsState()
     MainScreen(
-        state = state,
+        state = manager.state.collectAsState().value,
+        running_action_id = manager.running_action_id.collectAsState().value,
         custom_actions = custom_actions,
-        on_request_permission = manager::request_permission,
-        on_try_action = ::try_action,
-        on_pin_shortcut = ::pin_shortcut,
-        on_add_custom_action = ::add_custom_action,
-        on_update_custom_action = custom_actions_repository::update_action,
-        on_delete_custom_action = custom_actions_repository::delete_action,
-        on_backup_custom_actions = ::backup_custom_actions,
-        on_restore_custom_actions = ::select_restore_backup,
-        pending_restore_count = pending_restore_actions?.size,
-        on_confirm_restore_custom_actions = ::confirm_restore_custom_actions,
-        on_dismiss_restore_custom_actions = { pending_restore_actions = null }
+        deleted_action = delete_undo_state.deleted_action,
+        on_delete_custom_action = { action_id ->
+            custom_actions_repository.delete_action(action_id)?.let { delete_undo_state.deleted_action = it }
+        },
+        on_restore_custom_action = { deleted_action ->
+            if (delete_undo_state.deleted_action == deleted_action) {
+                custom_actions_repository.restore_action(deleted_action)
+                delete_undo_state.deleted_action = null
+            }
+        },
+        on_dismiss_delete_undo = { deleted_action ->
+            if (delete_undo_state.deleted_action == deleted_action) delete_undo_state.deleted_action = null
+        },
+        // Remaining action, backup, and restore callbacks omitted.
     )
 }
 ```

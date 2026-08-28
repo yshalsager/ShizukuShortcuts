@@ -88,7 +88,9 @@ class ActionCatalogTest {
 
         override suspend fun replace_all_actions(actions: List<CustomAction>) = true
 
-        override fun delete_action(action_id: String) = Unit
+        override fun delete_action(action_id: String): IndexedValue<CustomAction>? = null
+
+        override fun restore_action(deleted_action: IndexedValue<CustomAction>) = Unit
 
         override fun find_by_id(action_id: String) = actions.value.firstOrNull { it.id == action_id }
     }

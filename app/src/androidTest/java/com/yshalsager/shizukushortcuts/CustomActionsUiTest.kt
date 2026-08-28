@@ -69,6 +69,21 @@ class CustomActionsUiTest {
     }
 
     @Test
+    fun only_latest_rapid_deletion_is_undone() {
+        fake_repository.add_test_action(CustomAction("second-id", "Second command", "echo second"))
+        val delete_buttons = compose_rule.onAllNodesWithContentDescription(
+            compose_rule.activity.getString(R.string.delete_action)
+        )
+
+        delete_buttons[0].performClick()
+        delete_buttons[0].performClick()
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.undo_action)).performClick()
+
+        compose_rule.onNodeWithText("Custom command").assertIsDisplayed()
+        compose_rule.onAllNodesWithText("Second command").assertCountEquals(0)
+    }
+
+    @Test
     fun custom_action_management_stays_accessible_when_shizuku_is_unavailable() {
         fake_manager.set_not_ready()
         compose_rule.onNodeWithText("Custom command").assertIsDisplayed()
@@ -82,6 +97,11 @@ class CustomActionsUiTest {
             .assertIsNotEnabled()
         delete_button.performClick()
         compose_rule.onAllNodesWithText("Custom command").assertCountEquals(0)
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.custom_action_deleted)).assertIsDisplayed()
+        compose_rule.activityRule.scenario.recreate()
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.custom_action_deleted)).assertIsDisplayed()
+        compose_rule.onNodeWithText(compose_rule.activity.getString(R.string.undo_action)).performClick()
+        compose_rule.onNodeWithText("Custom command").assertIsDisplayed()
     }
 
     private class FakeShizukuManager : ShizukuManagerContract {
@@ -132,10 +152,22 @@ class CustomActionsUiTest {
             return true
         }
 
-        override fun delete_action(action_id: String) {
+        override fun delete_action(action_id: String): IndexedValue<CustomAction>? {
+            val deleted = state_flow.value.withIndex().firstOrNull { it.value.id == action_id } ?: return null
             state_flow.value = state_flow.value.filterNot { it.id == action_id }
+            return deleted
+        }
+
+        override fun restore_action(deleted_action: IndexedValue<CustomAction>) {
+            state_flow.value = state_flow.value.toMutableList().apply {
+                add(deleted_action.index.coerceAtMost(size), deleted_action.value)
+            }
         }
 
         override fun find_by_id(action_id: String) = state_flow.value.firstOrNull { it.id == action_id }
+
+        fun add_test_action(action: CustomAction) {
+            state_flow.value += action
+        }
     }
 }

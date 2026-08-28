@@ -36,6 +36,22 @@ class RepositoryCorruptionTest {
     }
 
     @Test
+    fun deleted_action_can_be_restored_in_place() {
+        val actions = listOf(
+            CustomAction("00000000-0000-0000-0000-000000000001", "First", "echo first"),
+            CustomAction("00000000-0000-0000-0000-000000000002", "Second", "echo second")
+        )
+        val repository = AppCustomActionsRepository(context)
+        runBlocking { repository.replace_all_actions(actions) }
+
+        val deleted_action = repository.delete_action(actions.first().id)!!
+        assertEquals(listOf(actions.last()), repository.actions.value)
+        repository.restore_action(deleted_action)
+
+        assertEquals(actions, repository.actions.value)
+    }
+
+    @Test
     fun wrong_typed_json_fields_are_rejected_on_android() {
         val custom_preferences = context.getSharedPreferences("custom_actions", Context.MODE_PRIVATE)
         val widget_preferences = context.getSharedPreferences("widget_bindings", Context.MODE_PRIVATE)

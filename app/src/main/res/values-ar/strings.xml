@@ -57,6 +57,8 @@
     <string name='pin_action'>ثبّت</string>
     <string name='edit_action'>عدّل</string>
     <string name='delete_action'>احذف</string>
+    <string name='custom_action_deleted'>تم حذف الإجراء</string>
+    <string name='undo_action'>تراجع</string>
     <string name='cancel_action'>إلغاء</string>
     <string name='save_action'>احفظ</string>
     <string name='edit_custom_action_title'>تعديل إجراء مخصص</string>

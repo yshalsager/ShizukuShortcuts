@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,7 +36,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import com.yshalsager.shizukushortcuts.ui.theme.AppColors
 import com.yshalsager.shizukushortcuts.ui.theme.shizuku_shortcuts_colors
@@ -74,6 +82,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     private val manager by lazy { AppServices.shizuku_manager(this) }
     private val custom_actions_repository by lazy { AppServices.custom_actions_repository(this) }
+    private val delete_undo_state by viewModels<DeleteUndoState>()
     private var pending_restore_actions by mutableStateOf<List<CustomAction>?>(null)
     private val create_backup_document = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -109,12 +118,24 @@ class MainActivity : ComponentActivity() {
                 state = state,
                 running_action_id = running_action_id,
                 custom_actions = custom_actions,
+                deleted_action = delete_undo_state.deleted_action,
                 on_request_permission = manager::request_permission,
                 on_try_action = ::try_action,
                 on_pin_shortcut = ::pin_shortcut,
                 on_add_custom_action = ::add_custom_action,
                 on_update_custom_action = custom_actions_repository::update_action,
-                on_delete_custom_action = custom_actions_repository::delete_action,
+                on_delete_custom_action = { action_id ->
+                    custom_actions_repository.delete_action(action_id)?.let { delete_undo_state.deleted_action = it }
+                },
+                on_restore_custom_action = { deleted_action ->
+                    if (delete_undo_state.deleted_action == deleted_action) {
+                        custom_actions_repository.restore_action(deleted_action)
+                        delete_undo_state.deleted_action = null
+                    }
+                },
+                on_dismiss_delete_undo = { deleted_action ->
+                    if (delete_undo_state.deleted_action == deleted_action) delete_undo_state.deleted_action = null
+                },
                 on_backup_custom_actions = ::backup_custom_actions,
                 on_restore_custom_actions = ::select_restore_backup,
                 pending_restore_count = pending_restore_actions?.size,
@@ -193,17 +214,24 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+internal class DeleteUndoState : ViewModel() {
+    var deleted_action by mutableStateOf<IndexedValue<CustomAction>?>(null)
+}
+
 @Composable
 private fun MainScreen(
     state: ShizukuState,
     running_action_id: String?,
     custom_actions: List<CustomAction>,
+    deleted_action: IndexedValue<CustomAction>?,
     on_request_permission: () -> Unit,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
     on_add_custom_action: (String, String) -> Int?,
     on_update_custom_action: (String, String, String) -> Unit,
     on_delete_custom_action: (String) -> Unit,
+    on_restore_custom_action: (IndexedValue<CustomAction>) -> Unit,
+    on_dismiss_delete_undo: (IndexedValue<CustomAction>) -> Unit,
     on_backup_custom_actions: () -> Unit,
     on_restore_custom_actions: () -> Unit,
     pending_restore_count: Int?,
@@ -227,6 +255,19 @@ private fun MainScreen(
     }
     var is_add_dialog_visible by remember { mutableStateOf(false) }
     var editing_action by remember { mutableStateOf<CustomAction?>(null) }
+    val snackbar_host_state = remember { SnackbarHostState() }
+    val deleted_message = stringResource(R.string.custom_action_deleted)
+    val undo_label = stringResource(R.string.undo_action)
+    LaunchedEffect(deleted_action, deleted_message, undo_label) {
+        val deleted = deleted_action ?: return@LaunchedEffect
+        val result = snackbar_host_state.showSnackbar(
+            message = deleted_message,
+            actionLabel = undo_label,
+            duration = SnackbarDuration.Long
+        )
+        if (result == SnackbarResult.ActionPerformed) on_restore_custom_action(deleted)
+        else on_dismiss_delete_undo(deleted)
+    }
 
     Box(
         modifier = Modifier
@@ -318,6 +359,25 @@ private fun MainScreen(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbar_host_state,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                .padding(16.dp)
+                .sizeIn(maxWidth = 600.dp)
+                .fillMaxWidth(),
+            snackbar = { data ->
+                Snackbar(
+                    snackbarData = data,
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = colors.surface_raised,
+                    contentColor = colors.text,
+                    actionColor = colors.text
+                )
+            }
+        )
 
         if (is_add_dialog_visible || editing_action != null) {
             AddCustomActionDialog(
