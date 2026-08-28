@@ -36,7 +36,7 @@ Outstanding work:
 - [x] Give widgets a high-contrast day/night surface, 56 dp minimum height, preview, and horizontal resizing.
 - [x] Render shell commands monospace/LTR and disclose Shizuku privileges, the five-second timeout, and 64 KiB output limit.
 - [x] Custom-action deletion offers an accessibility-aware undo and restores the same ID and list position.
-- [ ] Split the oversized activity and prefer standard Material components where they reduce code and accessibility debt.
+- [x] Split launcher orchestration from `MainScreen`; Snackbar was the only Material replacement adopted because it reduced custom timing and accessibility code.
 - [ ] Run lint and regular instrumentation tests in CI, align Java versions, and pin release tooling.
 - [ ] Complete physical-device/OEM and true two-version upgrade testing.
 

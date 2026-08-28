@@ -72,7 +72,8 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 
 Core pieces:
 
-- `MainActivity`: condensed Compose home screen with one readiness status, inline guidance, and action rows
+- `MainActivity`: launcher orchestration, backup/restore contracts, and action callbacks
+- `MainScreen`: condensed Compose UI with one readiness status, inline guidance, action rows, and dialogs
 - `ShortcutDispatchActivity`: disposable launcher-shortcut trampoline
 - `ShortcutDispatchService`: internal lifecycle-independent shortcut/widget execution
 - `AppShizukuManager`: binder state, permission flow, and user-service binding

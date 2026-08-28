@@ -292,9 +292,9 @@ Widgets are also action-based and use the same dispatch contract:
 - if a previously bound custom action is deleted, the widget shows a removed state and opens `ActionWidgetConfigureActivity` for rebinding
 - the widget uses high-contrast day/night surfaces, a 56 dp minimum height, launcher preview, and horizontal resizing
 
-## 5. MainActivity: condensed home screen
+## 5. MainActivity and MainScreen
 
-`MainActivity` is a compact Compose screen that shows:
+`MainActivity` owns launcher orchestration, activity-result contracts, and callbacks. `MainScreen` owns the Compose home screen, which shows:
 
 - one mutually exclusive readiness status: Shizuku stopped, permission required, or ready
 - inline guidance only when Shizuku is stopped or permission is missing
@@ -307,9 +307,9 @@ Widgets are also action-based and use the same dispatch contract:
 - a restore confirmation dialog with plural-aware current/imported counts and pinned-shortcut effects before destructive replace-all import
 - a monospace, LTR shell-command field that discloses Shizuku privileges, the five-second timeout, and 64 KiB captured-output limit
 
-File: [MainActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt)
+Files: [MainActivity.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainActivity.kt) and [MainScreen.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/MainScreen.kt)
 
-`DeleteUndoState` retains the latest deletion across configuration changes. Replacing that token cancels the previous Snackbar, so only the latest deletion can be undone.
+`DeleteUndoState` retains the latest deletion across configuration changes. Replacing that token cancels the previous Snackbar, so only the latest deletion can be undone. Snackbar is the only standard Material replacement used here because it removes custom timing and accessibility behavior; the smaller existing controls remain unchanged.
 
 ```kotlin
 setContent {
