@@ -46,6 +46,8 @@ class AppCustomActionsRepository(app_context: Context) : CustomActionsRepository
     private val shortcut_sync_scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
 
     override val actions: StateFlow<List<CustomAction>> = state_flow.asStateFlow()
+    // no undo window exists at process start, so icons of deleted or replaced actions can go
+    init { shortcut_sync_scope.async { ShortcutIcons.prune(this@AppCustomActionsRepository.app_context, state_flow.value.map { it.id } + ShortcutActions.ids) } }
     internal val initial_shortcut_sync = schedule_shortcut_sync(state_flow.value)
 
     override fun add_action(label: String, shell_command: String): CustomAction {

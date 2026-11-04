@@ -65,6 +65,15 @@
     <string name='pin_success'>تم إرسال طلب التثبيت إلى المشغّل</string>
     <string name='pin_not_supported'>المشغّل لا يدعم الاختصارات المثبتة</string>
     <string name='pin_failed'>تعذر إنشاء الاختصار</string>
+    <string name='change_icon_action'>غيّر الأيقونة</string>
+    <string name='icon_pack_title'>أيقونة الاختصار</string>
+    <string name='icon_default'>الأيقونة الافتراضية</string>
+    <string name='icon_image'>صورة من المعرض</string>
+    <string name='icon_updated'>تم تحديث أيقونة الاختصار</string>
+    <string name='icon_repin'>تم حفظ الأيقونة. ثبّت الإجراء مجدداً لاستخدامها، واحذف الاختصار القديم.</string>
+    <string name='icon_failed'>تعذر استخدام الأيقونة المحددة</string>
+    <string name='icon_search'>ابحث في الأيقونات</string>
+    <string name='icon_search_placeholder'>اسم الأيقونة</string>
     <string name='try_notifications_success'>تم فتح الإشعارات</string>
     <string name='try_quick_settings_success'>تم فتح الإعدادات السريعة</string>
     <string name='try_screenshot_success'>تم التقاط لقطة شاشة</string>

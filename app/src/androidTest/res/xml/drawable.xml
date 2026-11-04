@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <category title='System' />
+    <item drawable='settings' />
+    <item drawable='clock' />
+    <item drawable='settings' />
+</resources>

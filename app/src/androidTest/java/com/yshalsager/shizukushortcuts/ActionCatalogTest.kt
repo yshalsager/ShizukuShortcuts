@@ -61,6 +61,18 @@ class ActionCatalogTest {
     }
 
     @Test
+    fun public_actions_pin_under_mutable_ids_and_are_not_treated_as_custom_actions() {
+        for (id in ShortcutActions.public_shortcut_ids) {
+            val action = ActionCatalog.find_by_id(context, id)!!
+            val shortcut = ActionCatalog.build_pinned_shortcut(context, action)
+            assertEquals("$id.pinned", shortcut.id)
+            assertEquals(id, shortcut.intent.getStringExtra(ShortcutActions.extra_action_id))
+            assertEquals(action, ActionCatalog.find_by_intent(context, shortcut.intent))
+            assertEquals(emptySet<String>(), DynamicShortcutSync.custom_ids(listOf(shortcut.toShortcutInfo())))
+        }
+    }
+
+    @Test
     fun external_dispatch_is_limited_to_public_actions() {
         val public_intent = Intent().setAction(ShortcutActions.expand_notifications.shortcut_intent_action)
         val screenshot_intent = Intent().setAction(ShortcutActions.take_screenshot.shortcut_intent_action)

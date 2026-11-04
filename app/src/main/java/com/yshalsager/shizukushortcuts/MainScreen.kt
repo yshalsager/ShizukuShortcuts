@@ -23,6 +23,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,6 +82,7 @@ internal fun MainScreen(
     on_request_permission: () -> Unit,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
+    on_change_icon: (AppActionItem) -> Unit,
     on_add_custom_action: (String, String) -> Int?,
     on_update_custom_action: (String, String, String) -> Unit,
     on_delete_custom_action: (String) -> Unit,
@@ -151,6 +161,7 @@ internal fun MainScreen(
                     running_action_id = running_action_id,
                     on_try_action = on_try_action,
                     on_pin_shortcut = on_pin_shortcut,
+                    on_change_icon = on_change_icon,
                     on_delete_action = null
                 )
             }
@@ -197,6 +208,7 @@ internal fun MainScreen(
                         running_action_id = running_action_id,
                         on_try_action = on_try_action,
                         on_pin_shortcut = on_pin_shortcut,
+                        on_change_icon = on_change_icon,
                         on_edit_action = { action ->
                             editing_action = custom_actions.firstOrNull { it.id == action.id }
                         },
@@ -423,6 +435,7 @@ private fun ActionRow(
     running_action_id: String?,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
+    on_change_icon: (AppActionItem) -> Unit,
     on_edit_action: ((AppActionItem) -> Unit)? = null,
     on_delete_action: ((String) -> Unit)?
 ) {
@@ -465,7 +478,7 @@ private fun ActionRow(
             )
 
             if (!has_management_actions) {
-                ActionControls(colors, action, is_ready, running_action_id, on_try_action, on_pin_shortcut, null, null)
+                ActionControls(colors, action, is_ready, running_action_id, on_try_action, on_pin_shortcut, on_change_icon, null, null)
             }
         }
 
@@ -477,6 +490,7 @@ private fun ActionRow(
                 running_action_id = running_action_id,
                 on_try_action = on_try_action,
                 on_pin_shortcut = on_pin_shortcut,
+                on_change_icon = on_change_icon,
                 on_edit_action = on_edit_action,
                 on_delete_action = on_delete_action,
                 modifier = Modifier.fillMaxWidth()
@@ -493,6 +507,7 @@ private fun ActionControls(
     running_action_id: String?,
     on_try_action: (AppActionItem) -> Unit,
     on_pin_shortcut: (AppActionItem) -> Unit,
+    on_change_icon: (AppActionItem) -> Unit,
     on_edit_action: ((AppActionItem) -> Unit)?,
     on_delete_action: ((String) -> Unit)?,
     modifier: Modifier = Modifier
@@ -513,6 +528,12 @@ private fun ActionControls(
             icon_res = R.drawable.ic_pin,
             content_description = stringResource(R.string.pin_action),
             on_click = { on_pin_shortcut(action) }
+        )
+        IconActionButton(
+            colors = colors,
+            icon_res = R.drawable.ic_icon_pack,
+            content_description = stringResource(R.string.change_icon_action),
+            on_click = { on_change_icon(action) }
         )
         if (on_edit_action != null) {
             IconActionButton(
@@ -611,6 +632,60 @@ private fun AddCustomActionDialog(
                         error_res = on_submit(label, shell_command)
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun IconPackDialog(
+    title: String,
+    package_name: String,
+    icon_names: List<String>,
+    on_pick: (String) -> Unit,
+    on_dismiss: () -> Unit
+) {
+    val colors = shizuku_shortcuts_colors()
+    val context = LocalContext.current
+    val icon_px = with(LocalDensity.current) { 40.dp.roundToPx() }
+    var query by remember { mutableStateOf("") }
+    val filtered_names = remember(query, icon_names) { query.trim().replace(' ', '_').let { q -> icon_names.filter { it.contains(q, ignoreCase = true) } } }
+
+    Dialog(onDismissRequest = on_dismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 600.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.surface)
+                .border(1.dp, colors.border, RoundedCornerShape(24.dp))
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            BasicText(text = title, style = action_title_text_style(colors))
+            LabeledField(
+                colors = colors,
+                label = stringResource(R.string.icon_search),
+                value = query,
+                placeholder = stringResource(R.string.icon_search_placeholder),
+                on_value_change = { query = it }
+            )
+            LazyVerticalGrid(columns = GridCells.Adaptive(56.dp), modifier = Modifier.weight(1f, fill = false)) {
+                items(filtered_names, key = { it }) { name ->
+                    val bitmap by produceState<ImageBitmap?>(null, name) {
+                        value = withContext(Dispatchers.IO) { ShortcutIcons.pack_bitmap(context, package_name, name, icon_px)?.asImageBitmap() }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { on_pick(name) }
+                            .semantics { contentDescription = name },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        bitmap?.let { Image(bitmap = it, contentDescription = null, modifier = Modifier.size(40.dp)) }
+                    }
+                }
             }
         }
     }

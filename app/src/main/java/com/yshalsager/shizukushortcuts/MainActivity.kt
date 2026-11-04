@@ -1,10 +1,13 @@
 package com.yshalsager.shizukushortcuts
 
+import android.app.AlertDialog
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
@@ -45,8 +48,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var pending_icon_action: AppActionItem? = null
+    private var icon_pack_browser by mutableStateOf<IconPackBrowser?>(null)
+    private val pick_icon = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val action = pending_icon_action.also { pending_icon_action = null } ?: return@registerForActivityResult
+        if (result.resultCode == RESULT_OK) apply_icon(action, result.data?.let { ShortcutIcons.picked_bitmap(this, it) })
+    }
+
+    private val pick_image = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        val action = pending_icon_action.also { pending_icon_action = null } ?: return@registerForActivityResult
+        if (uri != null) lifecycleScope.launch { apply_icon(action, withContext(Dispatchers.IO) { ShortcutIcons.image_bitmap(this@MainActivity, uri) }) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pending_icon_action = ActionCatalog.find_by_id(this, savedInstanceState?.getString("pending_icon_action"))
         enableEdgeToEdge()
         manager.refresh_state()
 
@@ -62,6 +78,7 @@ class MainActivity : ComponentActivity() {
                 on_request_permission = manager::request_permission,
                 on_try_action = ::try_action,
                 on_pin_shortcut = ::pin_shortcut,
+                on_change_icon = ::change_icon,
                 on_add_custom_action = ::add_custom_action,
                 on_update_custom_action = custom_actions_repository::update_action,
                 on_delete_custom_action = { action_id ->
@@ -82,7 +99,26 @@ class MainActivity : ComponentActivity() {
                 on_confirm_restore_custom_actions = ::confirm_restore_custom_actions,
                 on_dismiss_restore_custom_actions = { pending_restore_actions = null }
             )
+            icon_pack_browser?.let { browser ->
+                IconPackDialog(
+                    title = browser.label,
+                    package_name = browser.package_name,
+                    icon_names = browser.icon_names,
+                    on_pick = { name ->
+                        icon_pack_browser = null
+                        lifecycleScope.launch {
+                            apply_icon(browser.action, withContext(Dispatchers.IO) { ShortcutIcons.pack_bitmap(this@MainActivity, browser.package_name, name) })
+                        }
+                    },
+                    on_dismiss = { icon_pack_browser = null }
+                )
+            }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pending_icon_action", pending_icon_action?.id)
+        super.onSaveInstanceState(outState)
     }
 
     private fun pin_shortcut(action: AppActionItem) {
@@ -94,6 +130,48 @@ class MainActivity : ComponentActivity() {
             else -> R.string.pin_failed
         }
         show_toast(getString(message_res))
+    }
+
+    private fun change_icon(action: AppActionItem) {
+        val packs = ShortcutIcons.packs(this)
+        val has_custom_icon = ShortcutIcons.has(this, action.id)
+        val labels = packs.map { it.loadLabel(packageManager) } + getString(R.string.icon_image) +
+            listOfNotNull(getString(R.string.icon_default).takeIf { has_custom_icon })
+        AlertDialog.Builder(this)
+            .setTitle(R.string.icon_pack_title)
+            .setItems(labels.toTypedArray()) { _, index ->
+                if (index < packs.size) return@setItems open_icon_pack(action, packs[index].activityInfo.packageName, labels[index].toString())
+                if (index == packs.size) {
+                    pending_icon_action = action
+                    return@setItems pick_image.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }
+                ShortcutIcons.delete(this, action.id)
+                update_shortcut_icon(action)
+            }
+            .show()
+    }
+
+    private fun open_icon_pack(action: AppActionItem, package_name: String, label: String) {
+        lifecycleScope.launch {
+            val icon_names = withContext(Dispatchers.IO) { ShortcutIcons.icon_names(this@MainActivity, package_name) }
+            if (icon_names.isNotEmpty()) icon_pack_browser = IconPackBrowser(action, package_name, label, icon_names)
+            else ShortcutIcons.picker_intent(this@MainActivity, package_name)
+                ?.let { pending_icon_action = action; pick_icon.launch(it) }
+                ?: show_toast(getString(R.string.icon_failed))
+        }
+    }
+
+    private fun apply_icon(action: AppActionItem, bitmap: Bitmap?) {
+        if (bitmap == null || !ShortcutIcons.save(this, action.id, bitmap)) return show_toast(getString(R.string.icon_failed))
+        update_shortcut_icon(action)
+    }
+
+    private fun update_shortcut_icon(action: AppActionItem) {
+        val pinned = ShortcutManagerCompat.getShortcuts(this, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+        val needs_repin = action.id in ShortcutActions.public_shortcut_ids &&
+            pinned.any { it.id == action.id } && pinned.none { it.id == ActionCatalog.pinned_id(action.id) }
+        val updated = ShortcutManagerCompat.updateShortcuts(this, listOf(ActionCatalog.build_pinned_shortcut(this, action)))
+        show_toast(getString(if (!updated) R.string.icon_failed else if (needs_repin) R.string.icon_repin else R.string.icon_updated))
     }
 
     private fun try_action(action: AppActionItem) {
@@ -153,6 +231,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private data class IconPackBrowser(val action: AppActionItem, val package_name: String, val label: String, val icon_names: List<String>)
 
 internal class DeleteUndoState : ViewModel() {
     var deleted_action by mutableStateOf<IndexedValue<CustomAction>?>(null)

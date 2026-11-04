@@ -5,11 +5,9 @@ import android.content.Intent
 import android.content.ComponentName
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
-import android.graphics.drawable.Icon
 import androidx.annotation.DrawableRes
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
-import androidx.core.graphics.drawable.IconCompat
 import java.util.UUID
 
 data class AppActionItem(
@@ -82,12 +80,15 @@ object ActionCatalog {
         }
     }
 
+    internal fun pinned_id(action_id: String) =
+        if (action_id in ShortcutActions.public_shortcut_ids) "$action_id.pinned" else action_id
+
     fun build_pinned_shortcut(context: Context, action: AppActionItem) =
-        ShortcutInfoCompat.Builder(context, action.id)
+        ShortcutInfoCompat.Builder(context, pinned_id(action.id))
             .setShortLabel(action.short_label)
             .setLongLabel(action.long_label)
             .setActivity(shortcut_activity(context))
-            .setIcon(IconCompat.createWithResource(context, action.icon_res))
+            .setIcon(ShortcutIcons.icon(context, action.id, action.icon_res))
             .setIntent(build_dispatch_intent(context, action))
             .build()
 }
@@ -147,8 +148,10 @@ object DynamicShortcutSync {
         )
     }
 
-    private fun custom_ids(shortcuts: List<ShortcutInfo>) =
-        shortcuts.mapTo(mutableSetOf(), ShortcutInfo::getId).apply { removeAll(ShortcutActions.ids) }
+    internal fun custom_ids(shortcuts: List<ShortcutInfo>) =
+        shortcuts.mapTo(mutableSetOf(), ShortcutInfo::getId).apply {
+            removeAll(ShortcutActions.ids + ShortcutActions.ids.map(ActionCatalog::pinned_id))
+        }
 
     private fun build_custom_shortcut(context: Context, action: CustomAction): ShortcutInfo {
         val app_action = AppActionItem(
@@ -163,7 +166,7 @@ object DynamicShortcutSync {
             .setShortLabel(action.label)
             .setLongLabel(action.label)
             .setActivity(ActionCatalog.shortcut_activity(context))
-            .setIcon(Icon.createWithResource(context, R.drawable.ic_shortcut_custom_action))
+            .setIcon(ShortcutIcons.icon(context, action.id, R.drawable.ic_shortcut_custom_action).toIcon(context))
             .setIntent(ActionCatalog.build_dispatch_intent(context, app_action))
             .build()
     }

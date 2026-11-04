@@ -57,6 +57,15 @@
     <string name='pin_success'>Launcher pin request sent</string>
     <string name='pin_not_supported'>Pinned shortcuts are not supported by this launcher</string>
     <string name='pin_failed'>Could not create the shortcut</string>
+    <string name='change_icon_action'>Change icon</string>
+    <string name='icon_pack_title'>Shortcut icon</string>
+    <string name='icon_default'>Default icon</string>
+    <string name='icon_image'>Image from gallery</string>
+    <string name='icon_updated'>Shortcut icon updated</string>
+    <string name='icon_repin'>Icon saved. Pin this action again to use it; remove the old shortcut.</string>
+    <string name='icon_failed'>Could not use the selected icon</string>
+    <string name='icon_search'>Search icons</string>
+    <string name='icon_search_placeholder'>Icon name</string>
     <string name='try_notifications_success'>Opened notifications</string>
     <string name='try_quick_settings_success'>Opened Quick Settings</string>
     <string name='try_screenshot_success'>Captured screenshot</string>
