@@ -16,7 +16,9 @@ for locale in en-US ar; do
   file="$dir/${VERSION_CODE}.txt"
   text="Release v${VERSION}. Notes: https://github.com/${REPO}/releases/tag/v${VERSION}"
 
-  printf '%s\n' "$text" > "$file"
+  if [[ ! -s "$file" ]]; then
+    printf '%s\n' "$text" > "$file"
+  fi
 
   size=$(wc -c < "$file")
   if [[ "$size" -gt 500 ]]; then
