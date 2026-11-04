@@ -51,10 +51,11 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 - Lets you add local custom shell actions that run through the same Shizuku user-service path
 - Keeps built-in static launcher shortcuts and publishes custom dynamic shortcuts to the launcher long-press menu
 - Supports pinned launcher shortcuts for both built-ins and custom actions
+- Lets you pick a shortcut icon from an installed icon pack (ADW/Nova/Kvaesitso format, searchable in-app grid or the pack's own picker) or from a gallery image, and updates already-pinned shortcuts in place
 - Supports a unified home-screen widget: each widget instance can be configured to one built-in or custom action
 - Routes widget taps through the disposable trampoline into an internal dispatch service and shows a rebind prompt if a linked custom action is removed
 - Shows one clear Shizuku readiness status with the next required action
-- Lets you `Try`, `Edit`, `Pin`, or `Delete` custom actions from the home screen
+- Lets you `Try`, `Pin`, `Change icon`, `Edit`, or `Delete` custom actions from the home screen
 - Shows the active action and rejects concurrent dispatch instead of queueing duplicate commands
 - Supports manual backup/restore for custom actions via Android file picker (replace-all restore)
 - Exports backup files as JSON with timestamped default names like `shizuku-custom-actions-backup-20260404-153045.json`

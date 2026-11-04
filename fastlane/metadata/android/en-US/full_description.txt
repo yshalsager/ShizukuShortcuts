@@ -7,6 +7,7 @@ Features:
 - Add your own local shell actions without the `adb shell` prefix
 - Compact home screen with Shizuku and permission status chips
 - Try, edit, pin, and delete custom actions directly from the home screen
+- Pick shortcut icons from installed icon packs or your own images, even for already-pinned shortcuts
 - Built-in static shortcuts plus dynamic launcher shortcuts for custom actions
 - Dynamic colors on Android 12+ with fallback colors on older versions
 - English and Arabic with RTL support

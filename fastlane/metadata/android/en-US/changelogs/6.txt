@@ -1,0 +1,3 @@
+Choose shortcut icons from installed icon packs or your own images.
+
+Existing Notifications and Quick Settings shortcuts, including those dragged from the launcher menu, must be re-pinned from the app once to use custom icons. Remove the old shortcut afterwards. Launcher menu icons remain unchanged.

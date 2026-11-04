@@ -285,6 +285,15 @@ shortcut_manager.dynamicShortcuts = shortcuts.take(sync_plan.dynamic_shortcut_co
 
 Pinned home-screen shortcuts for both built-ins and customs go through the same `ActionCatalog.build_pinned_shortcut()` path. After an app update, `ShortcutMigrationReceiver` keeps the broadcast alive with `goAsync()` until the normal synchronization job republishes custom shortcuts and widgets, then updates and re-enables legacy pinned screenshot and screen-off shortcuts with the local token.
 
+Shortcut icons can be replaced from installed icon packs or gallery images ([ShortcutIcons.kt](../app/src/main/java/com/yshalsager/shizukushortcuts/ShortcutIcons.kt)):
+
+- packs are discovered through `<queries>` for `org.adw.ActivityStarter.THEMES`, `org.adw.launcher.THEMES`, `com.novalauncher.THEME`, and `org.adw.launcher.icons.ACTION_PICK_ICON`; Kvaesitso-style packs need no picker activity
+- if the pack ships `drawable.xml` (`res/xml` or `assets`), `MainActivity` shows a searchable in-app grid; otherwise it launches the pack's picker and reads `EXTRA_SHORTCUT_ICON_RESOURCE` or the `icon` bitmap extra
+- `Image from gallery` uses the system photo picker (`PickVisualMedia`, no storage permission); `image_bitmap()` decodes with `inSampleSize`, applies the EXIF rotation, and center-crops to the shortcut icon size
+- the chosen icon is stored as `filesDir/shortcut_icons/<uuid-of-action-id>.png` (written to `.tmp` then renamed), so backup-provided IDs never become file paths
+- `build_pinned_shortcut()` and the dynamic custom-shortcut builder both read that file, so background synchronization keeps custom icons, and `updateShortcuts()` changes already-pinned shortcuts in place
+- `Default icon` deletes the file; icons of deleted or replaced actions are pruned when the repository starts
+
 Widgets are also action-based and use the same dispatch contract:
 
 - one widget instance binds to one `action_id` in `WidgetBindingsRepository`
@@ -678,7 +687,7 @@ There are five test surfaces:
 - Shizuku service contract in [PrivilegedStatusBarServiceTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/PrivilegedStatusBarServiceTest.kt)
 - XML/registry consistency in [ShortcutXmlSyncTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/ShortcutXmlSyncTest.kt)
 - widget-binding serialization and CRUD in [WidgetBindingsRepositoryTest.kt](../app/src/test/java/com/yshalsager/shizukushortcuts/WidgetBindingsRepositoryTest.kt)
-- instrumentation-side dispatch, catalog, and custom-action UI coverage in [ShortcutDispatchActivityTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivityTest.kt), [ActionCatalogTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ActionCatalogTest.kt), and [CustomActionsUiTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/CustomActionsUiTest.kt)
+- instrumentation-side dispatch, catalog, custom-action UI, and shortcut-icon coverage in [ShortcutDispatchActivityTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ShortcutDispatchActivityTest.kt), [ActionCatalogTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ActionCatalogTest.kt), [CustomActionsUiTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/CustomActionsUiTest.kt), and [ShortcutIconsTest.kt](../app/src/androidTest/java/com/yshalsager/shizukushortcuts/ShortcutIconsTest.kt)
 
 `CustomActionTest.kt` also covers backup payload parsing/validation (malformed JSON, unsupported version, duplicate IDs) and timestamped backup file naming.
 
