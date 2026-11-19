@@ -1,0 +1,1 @@
+Added Simplified Chinese (China). Choose it in Android’s app language settings.
