@@ -70,7 +70,7 @@ android {
     }
 
     androidResources {
-        localeFilters += listOf("en", "ar")
+        localeFilters += listOf("en", "ar", "zh-rCN")
     }
 }
 

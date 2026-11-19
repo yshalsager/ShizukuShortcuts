@@ -60,7 +60,7 @@ It can run them directly from the compact home screen with `Try`, pin them as la
 - Supports manual backup/restore for custom actions via Android file picker (replace-all restore)
 - Exports backup files as JSON with timestamped default names like `shizuku-custom-actions-backup-20260404-153045.json`
 - Supports Android dynamic colors on Android 12+ with a fixed fallback palette on older versions
-- Supports English and Arabic with RTL
+- Supports English, Arabic (RTL), and Simplified Chinese (China)
 - Uses Android app language settings, not an in-app language picker
 
 ## Requirements
