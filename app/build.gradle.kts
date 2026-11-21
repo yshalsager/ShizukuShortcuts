@@ -81,7 +81,7 @@ kotlin {
 }
 
 dependencies {
-    val compose_bom = platform("androidx.compose:compose-bom:2026.09.00")
+    val compose_bom = platform("androidx.compose:compose-bom:2026.11.01")
 
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.activity:activity-compose:1.13.0")
